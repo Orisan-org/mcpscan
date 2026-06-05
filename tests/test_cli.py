@@ -1,3 +1,9 @@
+import shutil
+import subprocess
+import sys
+import sysconfig
+from pathlib import Path
+
 from typer.testing import CliRunner
 
 from mcpscan.cli import app
@@ -37,3 +43,38 @@ def test_version_works() -> None:
 
     assert result.exit_code == 0
     assert "0.1.0" in result.output
+
+
+def test_module_entrypoint_help_works() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "mcpscan", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "scan" in result.stdout
+    assert "baseline" not in result.stdout
+    assert "diff" not in result.stdout
+
+
+def test_console_script_help_works() -> None:
+    script_name = "mcpscan.exe" if sys.platform == "win32" else "mcpscan"
+    executable = Path(sysconfig.get_path("scripts")) / script_name
+    if not executable.exists():
+        executable_from_path = shutil.which("mcpscan")
+        assert executable_from_path is not None
+        executable = Path(executable_from_path)
+
+    result = subprocess.run(
+        [str(executable), "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "scan" in result.stdout
+    assert "baseline" not in result.stdout
+    assert "diff" not in result.stdout
