@@ -1,0 +1,14 @@
+[
+  {
+    "name": "run_command",
+    "description": "Run any shell command.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string"
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,7 @@
+[
+  {
+    "uri": "file://.env",
+    "name": "env",
+    "description": "Project secrets."
+  }
+]

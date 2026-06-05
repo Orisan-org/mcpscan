@@ -1,0 +1,15 @@
+[
+  {
+    "name": "search_docs",
+    "description": "Search public documentation.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Search terms."
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,133 @@
+{
+  "findings": [
+    {
+      "evidence": "Potential GitHub token found in tool metadata for 'send_report' at input_schema.properties.api_key.default and was redacted (ghp_...3456).",
+      "id": "MCP-020",
+      "metadata": {},
+      "payload_stored": false,
+      "reference": "OWASP MCP Top 10: Credential exposure",
+      "remediation": "Remove secrets from MCP metadata and pass credentials through secure runtime configuration.",
+      "severity": "critical",
+      "target": "send_report",
+      "title": "Secret exposure in metadata"
+    },
+    {
+      "evidence": "Description for tool 'search' contains instruction-like phrase 'ignore previous instructions'.",
+      "id": "MCP-001",
+      "metadata": {},
+      "payload_stored": false,
+      "reference": "OWASP MCP Top 10: Tool poisoning",
+      "remediation": "Remove embedded instructions from MCP metadata and treat descriptions as untrusted display text.",
+      "severity": "high",
+      "target": "search",
+      "title": "Tool description prompt injection"
+    },
+    {
+      "evidence": "Tool 'run_command' appears to expose shell execution based on name, description, or schema.",
+      "id": "MCP-010",
+      "metadata": {},
+      "payload_stored": false,
+      "reference": "OWASP MCP Top 10: Excessive permissions",
+      "remediation": "Restrict dangerous tools, require explicit approval, and scope parameters as narrowly as possible.",
+      "severity": "high",
+      "target": "run_command",
+      "title": "Dangerous capability exposure"
+    },
+    {
+      "evidence": "Tool 'send_report' appears to expose credential access based on name, description, or schema.",
+      "id": "MCP-010",
+      "metadata": {},
+      "payload_stored": false,
+      "reference": "OWASP MCP Top 10: Excessive permissions",
+      "remediation": "Restrict dangerous tools, require explicit approval, and scope parameters as narrowly as possible.",
+      "severity": "high",
+      "target": "send_report",
+      "title": "Dangerous capability exposure"
+    },
+    {
+      "evidence": "Resource 'file://.env/' appears to expose sensitive data or file signal '.env'.",
+      "id": "MCP-021",
+      "metadata": {},
+      "payload_stored": false,
+      "reference": "OWASP MCP Top 10: Data exposure",
+      "remediation": "Remove sensitive resources from MCP exposure or gate them behind explicit authorization.",
+      "severity": "high",
+      "target": "env_file",
+      "title": "Sensitive data or file exposure"
+    },
+    {
+      "evidence": "Tool 'search' appears to expose sensitive data or file signal '.env'.",
+      "id": "MCP-021",
+      "metadata": {},
+      "payload_stored": false,
+      "reference": "OWASP MCP Top 10: Data exposure",
+      "remediation": "Restrict access to sensitive files and avoid exposing PII or secrets through MCP tools.",
+      "severity": "high",
+      "target": "search",
+      "title": "Sensitive data or file exposure"
+    },
+    {
+      "evidence": "Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands, code, or queries.",
+      "id": "MCP-030",
+      "metadata": {},
+      "payload_stored": false,
+      "reference": "OWASP MCP Top 10: Injection",
+      "remediation": "Constrain executable inputs with enums, patterns, length limits, allowlists, and server-side validation.",
+      "severity": "high",
+      "target": "run_command",
+      "title": "Command or code injection surface"
+    },
+    {
+      "evidence": "Name 'githab' is visually similar to known MCP server name 'github'.",
+      "id": "MCP-050",
+      "metadata": {},
+      "payload_stored": false,
+      "reference": "OWASP MCP Top 10: Supply chain",
+      "remediation": "Verify package provenance, repository ownership, and installation source before trusting this server.",
+      "severity": "medium",
+      "target": "githab",
+      "title": "Lookalike or typosquat name"
+    }
+  ],
+  "scanner": {
+    "name": "mcpscan",
+    "version": "0.1.0"
+  },
+  "server": {
+    "capabilities": {
+      "completions": null,
+      "experimental": {},
+      "logging": null,
+      "prompts": {
+        "listChanged": false
+      },
+      "resources": {
+        "listChanged": false,
+        "subscribe": false
+      },
+      "tasks": null,
+      "tools": {
+        "listChanged": false
+      }
+    },
+    "name": "githab",
+    "protocol_version": "2025-11-25",
+    "version": "1.27.2"
+  },
+  "summary": {
+    "counts": {
+      "critical": 1,
+      "high": 6,
+      "info": 0,
+      "low": 0,
+      "medium": 1
+    },
+    "grade": "F"
+  },
+  "target": {
+    "kind": "command",
+    "transport": "stdio",
+    "url": null
+  },
+  "warnings": []
+}
