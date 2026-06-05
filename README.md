@@ -1,65 +1,61 @@
 # mcpscan
 
-`mcpscan` is a local-first security scanner for Model Context Protocol servers.
+`mcpscan` is an alpha, local-first security scanner for Model Context Protocol servers.
 
-It connects to an MCP server, enumerates exposed tools, resources, prompts, and server metadata, runs deterministic security checks, and produces terminal, JSON, or Markdown findings before an AI agent trusts that server.
+It connects to an MCP server over stdio or tested Streamable HTTP, enumerates exposed tools/resources/prompts/metadata, runs deterministic checks, and emits terminal, JSON, or Markdown findings before an AI agent trusts that server.
 
-## Why MCP security matters
+## 60-Second Quickstart
 
-MCP servers can expose tools that read files, run commands, access credentials, or send network requests. Tool descriptions and schemas are also part of the model-visible surface. `mcpscan` gives AppSec and product security teams a quick local review step before connecting agents to new MCP servers.
-
-## Install
-
-```bash
-pipx install mcpscan
-```
-
-For local development:
+From a cloned repo:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+mcpscan list-checks
+mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py"
 ```
 
-## Quickstart
+The benign fixture should return grade `A` with no findings.
+
+## Scan A Stdio MCP Server
+
+Stdio scans launch the command you provide, perform the MCP handshake, enumerate the server, and then run checks over the exposed definitions.
 
 ```bash
-mcpscan list-checks
-mcpscan scan --command "python tests/fixtures/benign_server.py"
-mcpscan scan --command "python tests/fixtures/malicious_server.py" --output md --out examples/sample-report.md
+mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py"
+```
+
+Important: stdio targets execute locally. Only scan commands you are willing to run on your machine.
+
+## Scan A Streamable HTTP MCP Server
+
+Streamable HTTP is the primary tested remote transport in this release. This local fixture starts an MCP server on `127.0.0.1:8000`.
+
+Terminal 1:
+
+```bash
+.venv/bin/python tests/fixtures/remote_streamable_server.py --port 8000
+```
+
+Terminal 2:
+
+```bash
 mcpscan scan http://127.0.0.1:8000/mcp --transport http
 ```
 
-## Important: stdio targets execute locally
+Remote scans do not contact external services except the MCP server URL you provide. SSE is wired through the official MCP SDK when available, but it is not integration-tested in this release.
 
-When scanning a stdio MCP server, `mcpscan` launches the command you provide so it can perform the MCP handshake and enumerate capabilities. Only scan commands you are willing to execute on your machine.
+## Write JSON Or Markdown Reports
 
-## Remote HTTP support
+```bash
+mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output json --out /tmp/mcpscan-report.json
+mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output md --out /tmp/mcpscan-report.md
+```
 
-`mcpscan` supports MCP Streamable HTTP targets through the official Python MCP SDK. This path is tested against a local Streamable HTTP fixture server. Remote scans do not contact external services except the MCP server URL you provide. SSE transport is available when the installed SDK supports it, but Streamable HTTP is the primary tested remote path in this release.
+The malicious fixture intentionally returns findings, so these commands exit `1` when findings meet the default severity threshold.
 
-## What mcpscan checks
-
-Phase 1 includes deterministic checks for prompt injection in metadata, dangerous capabilities, secret exposure, sensitive file/data exposure, command/code injection surfaces, unauthenticated remote enumeration, missing TLS, and a static known-name lookalike check.
-
-## What mcpscan does not do
-
-`mcpscan` does not secure the model, does not enforce runtime policy, does not modify the target server, does not upload source code, and does not send findings to a cloud service. It only analyzes what the target MCP server exposes over MCP.
-
-Dynamic probing, MCP-002 tool definition drift, HTML reports, registry monitoring, and GitHub Actions integration are deferred.
-
-## Report formats
-
-- `table`: Rich terminal summary and findings table
-- `json`: machine-readable report
-- `md`: GitHub-readable Markdown report
-
-## Privacy
-
-By default, `mcpscan` runs locally. It does not upload source code, server responses, prompts, secrets, or findings to Orisan or any external service. Findings store redacted evidence only and always set `payload_stored=false`.
-
-## Check catalogue
+## What mcpscan Checks
 
 | ID | Title | Severity | Status |
 | --- | --- | --- | --- |
@@ -73,22 +69,93 @@ By default, `mcpscan` runs locally. It does not upload source code, server respo
 | MCP-041 | Missing TLS | high | active |
 | MCP-050 | Static known-name lookalike check using a curated seed list | medium | active |
 
-MCP-050 is an offline heuristic that compares exposed server/tool names against a curated static seed list of common MCP server names. It does not monitor package registries and should not be treated as exhaustive ecosystem coverage.
+MCP-002 baseline drift is deferred. MCP-050 is an offline heuristic that compares exposed server/tool names against a curated static seed list of common MCP server names. It does not monitor package registries and should not be treated as exhaustive ecosystem coverage.
 
-## Roadmap
+## What Findings Look Like
 
-- Phase 1: local CLI, stdio scanning, tested Streamable HTTP scanning, static checks, terminal/JSON/Markdown reports
-- Phase 2: safe dynamic probing, tool definition drift, HTML report, additional medium checks
-- Phase 3: GitHub Action, registry monitoring, hosted workflow only if validated
+Each finding includes:
 
-## Contributing
+- stable check ID
+- title
+- severity
+- target
+- redacted evidence
+- remediation
+- reference
+- `payload_stored=false`
 
-Run:
+Example:
+
+```json
+{
+  "id": "MCP-030",
+  "title": "Command or code injection surface",
+  "severity": "high",
+  "target": "run_command",
+  "evidence": "Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands, code, or queries.",
+  "remediation": "Constrain executable inputs with enums, patterns, length limits, allowlists, and server-side validation.",
+  "reference": "OWASP MCP Top 10: Injection",
+  "payload_stored": false
+}
+```
+
+## Privacy And Evidence Model
+
+By default, `mcpscan` runs locally. It does not upload source code, prompts, secrets, raw MCP responses, or findings to Orisan or any external service.
+
+Findings store safe, redacted evidence only. They identify the location and class of risk without storing full raw payloads. Every finding sets `payload_stored=false`.
+
+## Exit Codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Scan completed and no finding met the severity threshold |
+| `1` | Scan completed and at least one finding met the severity threshold |
+| `2` | User input or CLI usage error |
+| `3` | Connection or enumeration error |
+| `4` | Internal scanner error |
+
+Use `--severity-threshold low|medium|high|critical` to control when findings return exit `1`.
+
+## Supported Transports
+
+| Transport | Status |
+| --- | --- |
+| stdio | Tested with local fixture servers |
+| Streamable HTTP | Tested with a local fixture server |
+| SSE | Wired through the installed MCP SDK when available, but not integration-tested |
+
+## Limitations And Non-Goals
+
+`mcpscan` does not secure the model, enforce runtime policy, block agent actions, modify the target server, monitor registries, upload findings, or use LLM verdicts.
+
+Dynamic probing, MCP-002 tool definition drift, HTML reports, registry monitoring, GitHub Action packaging, SaaS dashboards, and runtime enforcement are not part of this alpha release.
+
+## Development And Verification
+
+Run the local quality gates:
 
 ```bash
 ruff format --check .
 ruff check .
 pytest
+python -m mcpscan --help
+python -m mcpscan list-checks
+```
+
+Release-readiness smoke checks:
+
+```bash
+mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py"
+mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --severity-threshold high
+mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output json --out /tmp/mcpscan-smoke.json || test $? -eq 1
+```
+
+For Streamable HTTP, start the local fixture and scan it:
+
+```bash
+.venv/bin/python tests/fixtures/remote_streamable_server.py --port 8000
+mcpscan scan http://127.0.0.1:8000/mcp --transport http
 ```
 
 ## License
