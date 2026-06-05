@@ -22,7 +22,11 @@ class RemoteConnector(Connector):
         client_factory = _remote_client_factory(self.target.transport)
         warnings: list[str] = []
         try:
-            async with client_factory(self.target.url, headers=self.target.headers) as streams:
+            async with client_factory(
+                self.target.url,
+                headers=self.target.headers,
+                timeout=self.timeout_seconds,
+            ) as streams:
                 read_stream, write_stream = streams[0], streams[1]
                 async with ClientSession(read_stream, write_stream) as session:
                     initialized = await session.initialize()

@@ -28,11 +28,16 @@ pip install -e ".[dev]"
 mcpscan list-checks
 mcpscan scan --command "python tests/fixtures/benign_server.py"
 mcpscan scan --command "python tests/fixtures/malicious_server.py" --output md --out examples/sample-report.md
+mcpscan scan http://127.0.0.1:8000/mcp --transport http
 ```
 
 ## Important: stdio targets execute locally
 
 When scanning a stdio MCP server, `mcpscan` launches the command you provide so it can perform the MCP handshake and enumerate capabilities. Only scan commands you are willing to execute on your machine.
+
+## Remote HTTP support
+
+`mcpscan` supports MCP Streamable HTTP targets through the official Python MCP SDK. This path is tested against a local Streamable HTTP fixture server. Remote scans do not contact external services except the MCP server URL you provide. SSE transport is available when the installed SDK supports it, but Streamable HTTP is the primary tested remote path in this release.
 
 ## What mcpscan checks
 
@@ -72,7 +77,7 @@ MCP-050 is an offline heuristic that compares exposed server/tool names against 
 
 ## Roadmap
 
-- Phase 1: local CLI, stdio scanning, stable remote scanning, static checks, terminal/JSON/Markdown reports
+- Phase 1: local CLI, stdio scanning, tested Streamable HTTP scanning, static checks, terminal/JSON/Markdown reports
 - Phase 2: safe dynamic probing, tool definition drift, HTML report, additional medium checks
 - Phase 3: GitHub Action, registry monitoring, hosted workflow only if validated
 
