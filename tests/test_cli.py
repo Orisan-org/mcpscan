@@ -14,6 +14,17 @@ def test_list_checks_works() -> None:
     assert "deferred" in result.output
 
 
+def test_help_only_shows_working_commands() -> None:
+    result = runner.invoke(app, ["--help"])
+
+    assert result.exit_code == 0
+    assert "scan" in result.output
+    assert "list-checks" in result.output
+    assert "version" in result.output
+    assert "baseline" not in result.output
+    assert "diff" not in result.output
+
+
 def test_scan_invalid_target_returns_usage_error() -> None:
     result = runner.invoke(app, ["scan", "server.py"])
 

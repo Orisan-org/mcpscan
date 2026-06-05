@@ -42,7 +42,7 @@ Phase 1 includes deterministic checks for prompt injection in metadata, dangerou
 
 `mcpscan` does not secure the model, does not enforce runtime policy, does not modify the target server, does not upload source code, and does not send findings to a cloud service. It only analyzes what the target MCP server exposes over MCP.
 
-Dynamic probing, baseline diff, HTML reports, registry monitoring, and GitHub Actions integration are deferred.
+Dynamic probing, MCP-002 tool definition drift, HTML reports, registry monitoring, and GitHub Actions integration are deferred.
 
 ## Report formats
 
@@ -71,7 +71,7 @@ By default, `mcpscan` runs locally. It does not upload source code, server respo
 ## Roadmap
 
 - Phase 1: local CLI, stdio scanning, stable remote scanning, static checks, terminal/JSON/Markdown reports
-- Phase 2: safe dynamic probing, baseline/diff, HTML report, additional medium checks
+- Phase 2: safe dynamic probing, tool definition drift, HTML report, additional medium checks
 - Phase 3: GitHub Action, registry monitoring, hosted workflow only if validated
 
 ## Contributing

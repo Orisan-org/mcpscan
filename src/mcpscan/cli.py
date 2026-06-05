@@ -50,26 +50,6 @@ def list_checks() -> None:
 
 
 @app.command()
-def baseline(
-    target: Annotated[str, typer.Argument(help="MCP target to baseline.")],
-    save: Annotated[Path | None, typer.Option("--save", help="Baseline output path.")] = None,
-) -> None:
-    _ = (target, save)
-    console.print("baseline/diff is deferred until Phase 2.")
-    raise typer.Exit(EXIT_USAGE)
-
-
-@app.command()
-def diff(
-    target: Annotated[str, typer.Argument(help="MCP target to compare.")],
-    baseline_path: Annotated[Path | None, typer.Option("--baseline", help="Baseline file.")] = None,
-) -> None:
-    _ = (target, baseline_path)
-    console.print("baseline/diff is deferred until Phase 2.")
-    raise typer.Exit(EXIT_USAGE)
-
-
-@app.command()
 def scan(
     target: Annotated[str | None, typer.Argument(help="Remote MCP URL target.")] = None,
     transport: Annotated[
