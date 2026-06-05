@@ -86,7 +86,7 @@
       "remediation": "Verify package provenance, repository ownership, and installation source before trusting this server.",
       "severity": "medium",
       "target": "githab",
-      "title": "Lookalike or typosquat name"
+      "title": "Static known-name lookalike check"
     }
   ],
   "scanner": {

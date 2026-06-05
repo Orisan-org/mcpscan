@@ -110,7 +110,7 @@ Constrain executable inputs with enums, patterns, length limits, allowlists, and
 Reference:
 OWASP MCP Top 10: Injection
 
-### MCP-050 - Lookalike or typosquat name
+### MCP-050 - Static known-name lookalike check
 Severity: Medium  
 Target: githab  
 Payload stored: false  

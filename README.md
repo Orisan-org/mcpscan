@@ -36,7 +36,7 @@ When scanning a stdio MCP server, `mcpscan` launches the command you provide so 
 
 ## What mcpscan checks
 
-Phase 1 includes deterministic checks for prompt injection in metadata, dangerous capabilities, secret exposure, sensitive file/data exposure, command/code injection surfaces, unauthenticated remote enumeration, missing TLS, and conservative lookalike names.
+Phase 1 includes deterministic checks for prompt injection in metadata, dangerous capabilities, secret exposure, sensitive file/data exposure, command/code injection surfaces, unauthenticated remote enumeration, missing TLS, and a static known-name lookalike check.
 
 ## What mcpscan does not do
 
@@ -66,7 +66,9 @@ By default, `mcpscan` runs locally. It does not upload source code, server respo
 | MCP-030 | Command or code injection surface | high | active |
 | MCP-040 | Unauthenticated remote server | high | active |
 | MCP-041 | Missing TLS | high | active |
-| MCP-050 | Lookalike or typosquat name | medium | active |
+| MCP-050 | Static known-name lookalike check using a curated seed list | medium | active |
+
+MCP-050 is an offline heuristic that compares exposed server/tool names against a curated static seed list of common MCP server names. It does not monitor package registries and should not be treated as exhaustive ecosystem coverage.
 
 ## Roadmap
 
