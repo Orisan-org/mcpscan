@@ -9,12 +9,14 @@ It connects to an MCP server over stdio or tested Streamable HTTP, enumerates ex
 From a cloned repo:
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 mcpscan list-checks
 mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py"
 ```
+
+Use `python -m venv .venv` instead if your system exposes Python 3 as `python`. Editable install may need network access to fetch build dependencies such as `hatchling`.
 
 The benign fixture should return grade `A` with no findings.
 
@@ -130,6 +132,8 @@ Use `--severity-threshold low|medium|high|critical` to control when findings ret
 `mcpscan` does not secure the model, enforce runtime policy, block agent actions, modify the target server, monitor registries, upload findings, or use LLM verdicts.
 
 Dynamic probing, MCP-002 tool definition drift, HTML reports, registry monitoring, GitHub Action packaging, SaaS dashboards, and runtime enforcement are not part of this alpha release.
+
+Local MCP config/path scanning is not supported yet. To scan stdio MCP servers, pass the server launch command with `--command`; to scan remote MCP servers, pass an `http(s)` URL.
 
 ## Development And Verification
 

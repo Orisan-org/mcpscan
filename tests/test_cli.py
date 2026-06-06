@@ -38,6 +38,32 @@ def test_scan_invalid_target_returns_usage_error() -> None:
     assert "Input error" in result.output
 
 
+def test_scan_local_config_path_explains_unsupported_state(tmp_path) -> None:
+    config = tmp_path / "mcp.json"
+    config.write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(app, ["scan", str(config)])
+
+    assert result.exit_code == 2
+    assert "Local config/path scanning is not supported yet" in result.output
+
+
+def test_scan_rejects_header_with_stdio_command() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "scan",
+            "--command",
+            "python server.py",
+            "--header",
+            "Authorization: Bearer fake",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "--header is only supported for remote HTTP/SSE transports" in result.output
+
+
 def test_version_works() -> None:
     result = runner.invoke(app, ["version"])
 

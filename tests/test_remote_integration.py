@@ -65,9 +65,14 @@ def test_remote_connection_failure_is_clear_and_fast() -> None:
     )
 
     started = time.monotonic()
-    with pytest.raises(EnumerationError, match="Failed to enumerate remote MCP server"):
+    with pytest.raises(
+        EnumerationError, match="connection failed|connection timed out"
+    ) as exc_info:
         asyncio.run(scan_target(target, timeout_seconds=0.2))
     assert time.monotonic() - started < 5
+    message = str(exc_info.value)
+    assert f"http://127.0.0.1:{port}/mcp" in message
+    assert "TaskGroup" not in message
 
 
 def _free_port() -> int:

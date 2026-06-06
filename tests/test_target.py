@@ -42,3 +42,42 @@ def test_rejects_bad_header() -> None:
 def test_rejects_invalid_target() -> None:
     with pytest.raises(TargetError):
         resolve_target("server.py", command=None, transport=None)
+
+
+def test_remote_headers_are_preserved() -> None:
+    target = resolve_target(
+        "https://example.com/mcp",
+        command=None,
+        transport=None,
+        headers=["Authorization: Bearer fake"],
+    )
+
+    assert target.headers == {"Authorization": "Bearer fake"}
+
+
+def test_rejects_headers_for_stdio_command() -> None:
+    with pytest.raises(TargetError, match="--header is only supported"):
+        resolve_target(
+            None,
+            command="python server.py",
+            transport=None,
+            headers=["Authorization: Bearer fake"],
+        )
+
+
+def test_rejects_nonexistent_local_path_with_config_message() -> None:
+    with pytest.raises(TargetError, match="Local config/path scanning is not supported"):
+        resolve_target("/tmp/does-not-exist", command=None, transport=None)
+
+
+def test_rejects_existing_mcp_json_with_config_message(tmp_path) -> None:
+    config = tmp_path / "mcp.json"
+    config.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(TargetError, match="Local config/path scanning is not supported"):
+        resolve_target(str(config), command=None, transport=None)
+
+
+def test_rejects_path_like_value_with_config_message() -> None:
+    with pytest.raises(TargetError, match="Local config/path scanning is not supported"):
+        resolve_target("./mcp.json", command=None, transport=None)

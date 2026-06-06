@@ -28,10 +28,14 @@ Do not scan public servers from CI. Do not add runtime registry lookups, registr
 Always run validation from a fresh virtual environment and verify the binary before trusting scan output:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install -e /path/to/mcpscan
 which mcpscan
 mcpscan --help
 ```
+
+Use `python -m venv .venv` instead if your system exposes Python 3 as `python`.
 
 Expected commands are only:
 

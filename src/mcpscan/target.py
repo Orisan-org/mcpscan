@@ -31,6 +31,10 @@ def resolve_target(
 ) -> ScanTarget:
     parsed_headers = parse_headers(headers)
     if command:
+        if parsed_headers:
+            raise TargetError(
+                "--header is only supported for remote HTTP/SSE transports; stdio servers do not receive HTTP headers."
+            )
         if target and target.startswith(("http://", "https://")):
             raise TargetError("--command cannot be combined with a remote URL target.")
         try:
@@ -56,7 +60,13 @@ def resolve_target(
 
     parsed = urlparse(target)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise TargetError("Target must be http(s) URL unless --command is provided.")
+        if _looks_like_local_path_or_config(target):
+            raise TargetError(
+                "Local config/path scanning is not supported yet. To scan a stdio MCP server, pass --command. To scan remote MCP, pass an http(s) URL."
+            )
+        raise TargetError(
+            "Target must be an http(s) URL unless --command is provided. Local config/path scanning is not supported yet."
+        )
     resolved_transport = transport or Transport.HTTP
     if resolved_transport == Transport.STDIO:
         raise TargetError("URL targets cannot use --transport stdio.")
@@ -67,3 +77,14 @@ def resolve_target(
         url=target,
         headers=parsed_headers,
     )
+
+
+def _looks_like_local_path_or_config(value: str) -> bool:
+    lowered = value.lower()
+    if lowered in {".", ".."}:
+        return True
+    if value.startswith(("/", "./", "../", "~")):
+        return True
+    if "/" in value or "\\" in value:
+        return True
+    return lowered.endswith((".json", ".yaml", ".yml", ".toml"))

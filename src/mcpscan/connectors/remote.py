@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import builtins
 from typing import Any
 
 from mcpscan.connectors.base import Connector
 from mcpscan.errors import EnumerationError
 from mcpscan.models import ScanContext, ServerInfo, Transport
 from mcpscan.normalizer import normalize_prompts, normalize_resources, normalize_tools
+from mcpscan.utils.redact import redact_url_credentials
 
 
 class RemoteConnector(Connector):
@@ -49,12 +51,12 @@ class RemoteConnector(Connector):
         except EnumerationError:
             raise
         except Exception as exc:
-            message = str(exc)
+            message = _safe_remote_error_message(exc, self.target.url)
             if "401" in message or "403" in message:
                 raise EnumerationError(
                     f"Remote MCP server rejected enumeration: {message}"
                 ) from exc
-            raise EnumerationError(f"Failed to enumerate remote MCP server: {message}") from exc
+            raise EnumerationError(message) from exc
 
 
 def _remote_client_factory(transport: Transport) -> Any:
@@ -110,3 +112,44 @@ def _to_dict(value: Any) -> dict[str, Any]:
         for key in dir(value)
         if not key.startswith("_") and not callable(getattr(value, key))
     }
+
+
+def _safe_remote_error_message(exc: Exception, url: str) -> str:
+    safe_url = redact_url_credentials(url)
+    details = _flatten_error_messages(exc)
+    details_text = " ".join(details).lower()
+    if "timed out" in details_text or "timeout" in details_text:
+        return (
+            f"Failed to enumerate remote MCP server at {safe_url}: connection timed out. "
+            "Check that the server is running, reachable, and using the selected transport."
+        )
+    if (
+        "connect" in details_text
+        or "connection" in details_text
+        or "refused" in details_text
+        or "all connection attempts failed" in details_text
+        or isinstance(exc, (ConnectionError, TimeoutError))
+    ):
+        return (
+            f"Failed to enumerate remote MCP server at {safe_url}: connection failed or was refused. "
+            "Check that the server is running, reachable, and using the selected transport."
+        )
+    detail = "; ".join(details) if details else exc.__class__.__name__
+    return f"Failed to enumerate remote MCP server at {safe_url}: {detail}"
+
+
+def _flatten_error_messages(exc: BaseException) -> list[str]:
+    if isinstance(exc, builtins.BaseExceptionGroup):
+        messages: list[str] = []
+        for child in exc.exceptions:
+            messages.extend(_flatten_error_messages(child))
+        return messages
+    message = str(exc).strip()
+    if not message:
+        message = exc.__class__.__name__
+    return [_redact_error_detail(message)]
+
+
+def _redact_error_detail(message: str) -> str:
+    words = [redact_url_credentials(word) for word in message.split()]
+    return " ".join(words)
