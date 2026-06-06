@@ -90,6 +90,35 @@ Do not commit raw scan responses. Summarize findings with check IDs, redacted ev
 - Sanitization notes: no raw MCP responses, prompt payloads, source code, credentials, or secrets committed
 - Product action: fixed MCP-010 false negative for fetch/url network egress without adding runtime registry monitoring or external calls
 
+### MCP-010 fetch(url) false negative — fixed
+
+Previous behavior:
+
+- MCP-010 detected obvious network tool names like `fetch_url` and `http_request`.
+- It missed the real-world MCP server shape `fetch(url)`.
+
+Root cause:
+
+- The rule relied too much on tool name/description signals.
+- It did not treat URL/URI-like input parameters as evidence of outbound network capability.
+
+Fix:
+
+- MCP-010 now detects fetch/browser/request/download/crawl/scrape-style tools when paired with URL/URI-like inputs.
+- Arbitrary URL inputs are high severity.
+- Constrained URL-like inputs using `enum`, `const`, or `pattern` are medium severity.
+- Generic memory/search/query tools remain clean.
+
+Validation:
+
+- `fetch(url)`, `http_request(url)`, `download_file(url)`, `crawl(url)`, `scrape_url(url)`, and `browser_navigate(url)` trigger MCP-010.
+- `search_nodes(query)`, `find_documents(query)`, and `lookup(query)` remain clean.
+- `payload_stored=false` remains preserved.
+
+Proof loop:
+
+real server -> missed capability -> targeted rule fix -> regression tests -> real rerun
+
 ## Entry Template
 
 Copy this block for longer notes when a table row is too small.
