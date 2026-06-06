@@ -23,6 +23,33 @@ Do not scan public servers from CI. Do not add runtime registry lookups, registr
 - Do not point broad filesystem MCP servers at a real home directory.
 - Keep target install commands and environment setup reproducible but sanitized.
 
+## Troubleshooting Stale Installs
+
+Always run validation from a fresh virtual environment and verify the binary before trusting scan output:
+
+```bash
+python -m pip install -e /path/to/mcpscan
+which mcpscan
+mcpscan --help
+```
+
+Expected commands are only:
+
+- `version`
+- `list-checks`
+- `scan`
+
+If `baseline` or `diff` appears in help output, the shell is resolving a stale global install. Reinstall into the active virtual environment and rerun `which mcpscan`.
+
+To avoid `PATH` confusion during validation, prefer:
+
+```bash
+python -m mcpscan --help
+python -m mcpscan scan --command "<redacted command>"
+```
+
+If editable install fails while fetching build dependencies such as `hatchling`, fix network/dependency installation first. Do not trust scan output from a shell that fell back to a global `mcpscan` binary after install failure.
+
 ## Running A Validation Scan
 
 1. Record the target name, target type, install source, and scan date.

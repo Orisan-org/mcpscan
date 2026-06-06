@@ -9,6 +9,46 @@ Do not commit raw scan responses. Summarize findings with check IDs, redacted ev
 | Target name | Target type | Install command or source | Scan command | Scan date | Result grade | Finding IDs | True positives | Suspected false positives | Suspected false negatives | Confusing output | Crash/error behavior | README/docs improvement | Raw payload stored? | `payload_stored=false` verified? |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | _Template_ | stdio / Streamable HTTP / SSE | Redacted install/source note | Redacted command with no secrets | YYYY-MM-DD | A-F | MCP-001, MCP-010 | Brief sanitized note | Brief sanitized note | Brief sanitized note | Brief sanitized note | None / summarized error | Brief improvement | No | Yes |
+| memory MCP server | stdio | npm package via `npx`; clean validation venv | `mcpscan scan --command "npx -y @modelcontextprotocol/server-memory"` | 2026-06-06 | A | None | None | Previous MCP-030 false positive on `search_nodes(query)` is fixed | None observed | Stale global `mcpscan` initially caused confusion after editable install failed | Document stale/global install troubleshooting | No | Yes |
+| filesystem MCP server | stdio | npm package via `npx`; safe temp root only | `mcpscan scan --command "npx -y @modelcontextprotocol/server-filesystem <safe-temp-root>"` | 2026-06-06 | D | MCP-010 | File capability exposure findings on read/write/info tools were true positives | None observed | None observed | None after clean venv install | Document safe-root validation and binary verification | No | Yes |
+
+## Sanitized Validation Notes
+
+### memory MCP server
+
+- Target type: stdio
+- Install command or source: npm package via `npx`
+- Scan command: `mcpscan scan --command "npx -y @modelcontextprotocol/server-memory"`
+- Scan date: 2026-06-06
+- Result grade: A
+- Finding IDs: none
+- True positives: none
+- Suspected false positives: none after MCP-030 execution-semantics fix
+- Suspected false negatives: none observed during this pass
+- Confusing output: stale global `mcpscan` was used after editable install failed to fetch build dependencies; clean venv fixed this
+- Crash/error behavior: none after clean install
+- README/docs improvement: add stale/global install troubleshooting to validation protocol
+- Raw payload stored: No
+- `payload_stored=false` verified: Yes
+- Sanitization notes: no raw MCP responses, prompt payloads, source code, credentials, or secrets committed
+
+### filesystem MCP server
+
+- Target type: stdio
+- Install command or source: npm package via `npx`, pointed only at a safe temporary root
+- Scan command: `mcpscan scan --command "npx -y @modelcontextprotocol/server-filesystem <safe-temp-root>"`
+- Scan date: 2026-06-06
+- Result grade: D
+- Finding IDs: MCP-010
+- True positives: five file capability exposure findings on file read/write/info-style tools
+- Suspected false positives: none observed during this pass
+- Suspected false negatives: none observed during this pass
+- Confusing output: none after clean venv install
+- Crash/error behavior: none after clean venv install
+- README/docs improvement: remind validators to verify the active `mcpscan` binary
+- Raw payload stored: No
+- `payload_stored=false` verified: Yes
+- Sanitization notes: no raw MCP responses, prompt payloads, source code, credentials, or secrets committed
 
 ## Entry Template
 

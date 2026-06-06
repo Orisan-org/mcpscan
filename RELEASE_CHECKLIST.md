@@ -36,7 +36,9 @@ python -m mcpscan scan http://127.0.0.1:8000/mcp --transport http || test $? -eq
 ## Release Hygiene
 
 - README examples match actual CLI behavior.
+- `which mcpscan` points at the expected virtual environment when validating installed CLI behavior.
 - `python -m mcpscan --help` shows no placeholder commands.
+- `mcpscan --help` does not show removed placeholder commands such as `baseline` or `diff`.
 - `python -m mcpscan list-checks` keeps MCP-002 marked `deferred`.
 - JSON smoke output keeps every finding at `payload_stored=false`.
 - Findings do not store raw secrets, full prompt payloads, source code, or full raw MCP responses.
