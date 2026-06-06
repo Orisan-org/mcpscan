@@ -1,6 +1,30 @@
 # Changelog
 
-## v0.1.0-alpha.1 - Unreleased
+## v0.1.0-alpha.2 - 2026-06-06
+
+Validation-driven alpha patch.
+
+### Fixed
+
+- Reduced MCP-030 false positives by requiring actual command/code execution semantics.
+- Fixed MCP-010 false negative for fetch-style outbound network capability by detecting URL/URI-like inputs on fetch/browser/request/download/crawl/scrape tools.
+- Improved CLI ergonomics for unsupported local config/path targets.
+- Rejected `--header` with stdio commands instead of silently ignoring it.
+- Improved dead remote URL connection/refused errors so they do not collapse to generic TaskGroup wording.
+
+### Added
+
+- Validation notes for memory, filesystem, and fetch MCP server testing.
+- Stale/global install troubleshooting documentation for validation workflows.
+
+### Deferred
+
+- MCP-002 baseline/tool definition drift.
+- SSE integration testing.
+- MCP config-file scanning.
+- Terminal inventory view.
+
+## v0.1.0-alpha.1 - 2026-06-05
 
 Initial alpha release candidate.
 
