@@ -158,6 +158,10 @@ For Streamable HTTP, start the local fixture and scan it:
 mcpscan scan http://127.0.0.1:8000/mcp --transport http
 ```
 
+## Field Validation
+
+After the alpha release, use [docs/VALIDATION_PROTOCOL.md](docs/VALIDATION_PROTOCOL.md) for repeatable real-world MCP server testing and record sanitized notes in [docs/VALIDATION_RESULTS.md](docs/VALIDATION_RESULTS.md). Validation notes must not include raw MCP responses, prompt payloads, source code, credentials, or secrets.
+
 ## License
 
 MIT
