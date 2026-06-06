@@ -102,7 +102,7 @@ Target: run_command
 Payload stored: false  
 
 Evidence:
-Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands, code, or queries.
+Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands or code.
 
 Remediation:
 Constrain executable inputs with enums, patterns, length limits, allowlists, and server-side validation.

@@ -67,7 +67,7 @@
       "title": "Sensitive data or file exposure"
     },
     {
-      "evidence": "Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands, code, or queries.",
+      "evidence": "Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands or code.",
       "id": "MCP-030",
       "metadata": {},
       "payload_stored": false,

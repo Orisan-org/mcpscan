@@ -92,7 +92,7 @@ Example:
   "title": "Command or code injection surface",
   "severity": "high",
   "target": "run_command",
-  "evidence": "Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands, code, or queries.",
+  "evidence": "Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands or code.",
   "remediation": "Constrain executable inputs with enums, patterns, length limits, allowlists, and server-side validation.",
   "reference": "OWASP MCP Top 10: Injection",
   "payload_stored": false

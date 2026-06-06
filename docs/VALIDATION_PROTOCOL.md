@@ -50,6 +50,7 @@ from pathlib import Path
 path = Path("/tmp/mcpscan-target.json")
 payload = json.loads(path.read_text())
 findings = payload.get("findings", [])
+print("summary_grade", payload.get("summary", {}).get("grade"))
 print("finding_count", len(findings))
 print("payload_stored_false", all(f.get("payload_stored") is False for f in findings))
 PY
