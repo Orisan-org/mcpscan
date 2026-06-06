@@ -11,6 +11,8 @@ Do not commit raw scan responses. Summarize findings with check IDs, redacted ev
 | _Template_ | stdio / Streamable HTTP / SSE | Redacted install/source note | Redacted command with no secrets | YYYY-MM-DD | A-F | MCP-001, MCP-010 | Brief sanitized note | Brief sanitized note | Brief sanitized note | Brief sanitized note | None / summarized error | Brief improvement | No | Yes |
 | memory MCP server | stdio | npm package via `npx`; clean validation venv | `mcpscan scan --command "npx -y @modelcontextprotocol/server-memory"` | 2026-06-06 | A | None | None | Previous MCP-030 false positive on `search_nodes(query)` is fixed | None observed | Stale global `mcpscan` initially caused confusion after editable install failed | Document stale/global install troubleshooting | No | Yes |
 | filesystem MCP server | stdio | npm package via `npx`; safe temp root only | `mcpscan scan --command "npx -y @modelcontextprotocol/server-filesystem <safe-temp-root>"` | 2026-06-06 | D | MCP-010 | File capability exposure findings on read/write/info tools were true positives | None observed | None observed | None after clean venv install | Document safe-root validation and binary verification | No | Yes |
+| fetch MCP server via npm package guess | stdio | npm package guess via `npx` | `mcpscan scan --command "npx -y @modelcontextprotocol/server-fetch"` | 2026-06-06 | No report | None | None | None | None | Target command failed before MCP enumeration; scanner showed generic TaskGroup enumeration error | Improve stdio startup/package-failure errors | No report generated | No report generated |
+| fetch MCP server via PyPI package | stdio | Python package via `uvx` | `mcpscan scan --command "uvx mcp-server-fetch"` | 2026-06-06 | A | None | None | None observed | Suspected MCP-010 false negative for network-capable fetch/url tool | None | Add MCP-010 network-egress follow-up; no MCP-030/MCP-021 observed | No | Yes |
 
 ## Sanitized Validation Notes
 
@@ -49,6 +51,44 @@ Do not commit raw scan responses. Summarize findings with check IDs, redacted ev
 - Raw payload stored: No
 - `payload_stored=false` verified: Yes
 - Sanitization notes: no raw MCP responses, prompt payloads, source code, credentials, or secrets committed
+
+### fetch MCP server via npm package guess
+
+- Target type: stdio
+- Install command or source: npm package guess via `npx`
+- Scan command: `mcpscan scan --command "npx -y @modelcontextprotocol/server-fetch"`
+- Scan date: 2026-06-06
+- Result grade: no report generated
+- Finding IDs: none
+- True positives: none
+- Suspected false positives: none
+- Suspected false negatives: not applicable; target failed before MCP enumeration
+- Confusing output: scanner surfaced a generic TaskGroup enumeration error instead of the package/root-cause failure
+- Crash/error behavior: target command failed with npm package not found before MCP enumeration
+- README/docs improvement: record package/path mismatch and stale/global install checks in validation workflow
+- Raw payload stored: No report generated
+- `payload_stored=false` verified: No report generated
+- Sanitization notes: no raw MCP responses, prompt payloads, source code, credentials, or secrets committed
+- Product action: improve stdio connector/CLI error ergonomics for command startup and package failures
+
+### fetch MCP server via PyPI package
+
+- Target type: stdio
+- Install command or source: Python package via `uvx`
+- Scan command: `mcpscan scan --command "uvx mcp-server-fetch"`
+- Scan date: 2026-06-06
+- Result grade: A
+- Finding IDs: none
+- True positives: none
+- Suspected false positives: none observed
+- Suspected false negatives: suspected MCP-010 false negative because the server exposes a network fetch capability with URL input
+- Confusing output: none
+- Crash/error behavior: none
+- README/docs improvement: add follow-up to tune MCP-010 network-egress detection for fetch-style tools
+- Raw payload stored: No
+- `payload_stored=false` verified: Yes
+- Sanitization notes: no raw MCP responses, prompt payloads, source code, credentials, or secrets committed
+- Product action: MCP-010 should likely classify fetch/url tools as network egress without adding runtime registry monitoring or external calls
 
 ## Entry Template
 
