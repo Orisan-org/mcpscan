@@ -48,9 +48,9 @@ python -m mcpscan scan http://127.0.0.1:8000/mcp --transport http || test $? -eq
 
 ## Tag
 
-Recommended first alpha tag:
+Use the next alpha tag, for example `v0.1.0-alpha.N`:
 
 ```bash
-git tag v0.1.0-alpha.1
-git push origin v0.1.0-alpha.1
+git tag v0.1.0-alpha.N
+git push origin v0.1.0-alpha.N
 ```

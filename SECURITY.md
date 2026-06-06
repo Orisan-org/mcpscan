@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-`mcpscan` is currently an alpha project. Security fixes are handled on the latest `main` branch until tagged releases begin.
+`mcpscan` is currently an alpha project. Security fixes are handled on latest `main` and current alpha tags. If a fix affects a released alpha, the release notes will call it out.
 
 ## Reporting A Vulnerability
 
@@ -16,6 +16,6 @@ Please report security issues privately to the project owner before public discl
 
 ## Privacy Boundary
 
-`mcpscan` is a local scanner. It should not upload source code, prompts, secrets, raw MCP responses, or findings to any external service.
+`mcpscan` is a local scanner. It should not upload source code, prompts, secrets, raw MCP responses, or findings to any external service. Remote scans should only contact the user-provided MCP endpoint.
 
 Findings should contain redacted evidence only and must keep `payload_stored=false`.

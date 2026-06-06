@@ -107,6 +107,8 @@ By default, `mcpscan` runs locally. It does not upload source code, prompts, sec
 
 Findings store safe, redacted evidence only. They identify the location and class of risk without storing full raw payloads. Every finding sets `payload_stored=false`.
 
+Do not place secrets directly in `--command`, headers, or report output paths. Reports may include user-provided target strings such as the stdio command for traceability.
+
 ## Exit Codes
 
 | Code | Meaning |
