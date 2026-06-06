@@ -12,7 +12,7 @@ Do not commit raw scan responses. Summarize findings with check IDs, redacted ev
 | memory MCP server | stdio | npm package via `npx`; clean validation venv | `mcpscan scan --command "npx -y @modelcontextprotocol/server-memory"` | 2026-06-06 | A | None | None | Previous MCP-030 false positive on `search_nodes(query)` is fixed | None observed | Stale global `mcpscan` initially caused confusion after editable install failed | Document stale/global install troubleshooting | No | Yes |
 | filesystem MCP server | stdio | npm package via `npx`; safe temp root only | `mcpscan scan --command "npx -y @modelcontextprotocol/server-filesystem <safe-temp-root>"` | 2026-06-06 | D | MCP-010 | File capability exposure findings on read/write/info tools were true positives | None observed | None observed | None after clean venv install | Document safe-root validation and binary verification | No | Yes |
 | fetch MCP server via npm package guess | stdio | npm package guess via `npx` | `mcpscan scan --command "npx -y @modelcontextprotocol/server-fetch"` | 2026-06-06 | No report | None | None | None | None | Target command failed before MCP enumeration; scanner showed generic TaskGroup enumeration error | Improve stdio startup/package-failure errors | No report generated | No report generated |
-| fetch MCP server via PyPI package | stdio | Python package via `uvx` | `mcpscan scan --command "uvx mcp-server-fetch"` | 2026-06-06 | A | None | None | None observed | Suspected MCP-010 false negative for network-capable fetch/url tool | None | Add MCP-010 network-egress follow-up; no MCP-030/MCP-021 observed | No | Yes |
+| fetch MCP server via PyPI package | stdio | Python package via `uvx` | `mcpscan scan --command "uvx mcp-server-fetch"` | 2026-06-06 | D | MCP-010 | Network fetch capability with URL input was flagged after MCP-010 tuning | None observed | None observed in rerun | None | No MCP-030/MCP-021 observed; MCP-010 false negative fixed | No | Yes |
 
 ## Sanitized Validation Notes
 
@@ -77,18 +77,18 @@ Do not commit raw scan responses. Summarize findings with check IDs, redacted ev
 - Install command or source: Python package via `uvx`
 - Scan command: `mcpscan scan --command "uvx mcp-server-fetch"`
 - Scan date: 2026-06-06
-- Result grade: A
-- Finding IDs: none
-- True positives: none
+- Result grade: D
+- Finding IDs: MCP-010
+- True positives: outbound network fetch capability with URL input
 - Suspected false positives: none observed
-- Suspected false negatives: suspected MCP-010 false negative because the server exposes a network fetch capability with URL input
+- Suspected false negatives: none observed in rerun after MCP-010 tuning
 - Confusing output: none
 - Crash/error behavior: none
-- README/docs improvement: add follow-up to tune MCP-010 network-egress detection for fetch-style tools
+- README/docs improvement: keep this as a regression validation target for MCP-010 network egress
 - Raw payload stored: No
 - `payload_stored=false` verified: Yes
 - Sanitization notes: no raw MCP responses, prompt payloads, source code, credentials, or secrets committed
-- Product action: MCP-010 should likely classify fetch/url tools as network egress without adding runtime registry monitoring or external calls
+- Product action: fixed MCP-010 false negative for fetch/url network egress without adding runtime registry monitoring or external calls
 
 ## Entry Template
 
