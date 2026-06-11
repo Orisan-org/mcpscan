@@ -16,6 +16,7 @@ from mcpscan.models import (
     TargetKind,
     Transport,
 )
+from mcpscan.reporters.json_reporter import render_json
 from mcpscan.scanner import scan_target
 
 GRADE_ORDER = {"A": 0, "B": 1, "C": 2, "D": 3, "F": 4}
@@ -30,6 +31,7 @@ async def scan_mcp_configs(
     only: set[str] | None = None,
     consent: ConsentCallback | None = None,
     timeout_seconds: float = 90.0,
+    baseline_dir: Path | None = None,
 ) -> ConfigScanResult:
     loaded = load_mcp_configs(config_path)
     selected = [server for server in loaded.servers if not only or server.name in only]
@@ -50,6 +52,8 @@ async def scan_mcp_configs(
 
     server_results: list[ConfigServerResult] = []
     failures: list[ConfigServerFailure] = []
+    if baseline_dir:
+        baseline_dir.mkdir(parents=True, exist_ok=True)
     for server in selected:
         if server.transport == Transport.STDIO and consent and not consent(server):
             skipped.append(
@@ -62,7 +66,14 @@ async def scan_mcp_configs(
             )
             continue
         try:
-            result = await scan_target(_target_for_server(server), timeout_seconds=timeout_seconds)
+            baseline_path = _baseline_path(baseline_dir, server.name)
+            result = await scan_target(
+                _target_for_server(server),
+                timeout_seconds=timeout_seconds,
+                baseline_path=baseline_path if baseline_path and baseline_path.exists() else None,
+            )
+            if baseline_path:
+                baseline_path.write_text(render_json(result), encoding="utf-8")
             server_results.append(
                 ConfigServerResult(
                     name=server.name,
@@ -132,3 +143,12 @@ def _worst_grade(grades: list[str]) -> str:
     if not grades:
         return "A"
     return max(grades, key=lambda grade: GRADE_ORDER.get(grade, 0))
+
+
+def _baseline_path(baseline_dir: Path | None, server_name: str) -> Path | None:
+    if baseline_dir is None:
+        return None
+    safe_name = "".join(
+        char if char.isalnum() or char in {"-", "_"} else "_" for char in server_name
+    )
+    return baseline_dir / f"{safe_name}.json"

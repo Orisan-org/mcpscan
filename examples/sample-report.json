@@ -1,9 +1,11 @@
 {
   "findings": [
     {
+      "capability": "credential_access",
       "evidence": "Potential GitHub token found in tool metadata for 'send_report' at input_schema.properties.api_key.default and was redacted (ghp_...3456).",
       "id": "MCP-020",
       "metadata": {},
+      "owasp_mcp": "MCP01",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Credential exposure",
       "remediation": "Remove secrets from MCP metadata and pass credentials through secure runtime configuration.",
@@ -12,20 +14,24 @@
       "title": "Secret exposure in metadata"
     },
     {
+      "capability": "prompt_anomaly",
       "evidence": "Description for tool 'search' contains instruction-like phrase 'ignore previous instructions'.",
       "id": "MCP-001",
       "metadata": {},
+      "owasp_mcp": "MCP03",
       "payload_stored": false,
-      "reference": "OWASP MCP Top 10: Tool poisoning",
+      "reference": "OWASP MCP Top 10: Tool poisoning and rug pull attacks",
       "remediation": "Remove embedded instructions from MCP metadata and treat descriptions as untrusted display text.",
       "severity": "high",
       "target": "search",
       "title": "Tool description prompt injection"
     },
     {
+      "capability": "shell_exec",
       "evidence": "Tool 'run_command' appears to expose shell execution based on name, description, or schema.",
       "id": "MCP-010",
       "metadata": {},
+      "owasp_mcp": "MCP02",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Excessive permissions",
       "remediation": "Restrict dangerous tools, require explicit approval, and scope parameters as narrowly as possible.",
@@ -34,9 +40,11 @@
       "title": "Dangerous capability exposure"
     },
     {
+      "capability": "credential_access",
       "evidence": "Tool 'send_report' appears to expose credential access based on name, description, or schema.",
       "id": "MCP-010",
       "metadata": {},
+      "owasp_mcp": "MCP02",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Excessive permissions",
       "remediation": "Restrict dangerous tools, require explicit approval, and scope parameters as narrowly as possible.",
@@ -45,44 +53,52 @@
       "title": "Dangerous capability exposure"
     },
     {
+      "capability": "data_exposure",
       "evidence": "Resource 'file://.env/' appears to expose sensitive data or file signal '.env'.",
       "id": "MCP-021",
       "metadata": {},
+      "owasp_mcp": "MCP10",
       "payload_stored": false,
-      "reference": "OWASP MCP Top 10: Data exposure",
+      "reference": "OWASP MCP Top 10: Sensitive data exposure",
       "remediation": "Remove sensitive resources from MCP exposure or gate them behind explicit authorization.",
       "severity": "high",
       "target": "env_file",
       "title": "Sensitive data or file exposure"
     },
     {
+      "capability": "data_exposure",
       "evidence": "Tool 'search' appears to expose sensitive data or file signal '.env'.",
       "id": "MCP-021",
       "metadata": {},
+      "owasp_mcp": "MCP10",
       "payload_stored": false,
-      "reference": "OWASP MCP Top 10: Data exposure",
+      "reference": "OWASP MCP Top 10: Sensitive data exposure",
       "remediation": "Restrict access to sensitive files and avoid exposing PII or secrets through MCP tools.",
       "severity": "high",
       "target": "search",
       "title": "Sensitive data or file exposure"
     },
     {
+      "capability": "shell_exec",
       "evidence": "Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands or code.",
       "id": "MCP-030",
       "metadata": {},
+      "owasp_mcp": "MCP05",
       "payload_stored": false,
-      "reference": "OWASP MCP Top 10: Injection",
+      "reference": "OWASP MCP Top 10: Tool invocation injection",
       "remediation": "Constrain executable inputs with enums, patterns, length limits, allowlists, and server-side validation.",
       "severity": "high",
       "target": "run_command",
       "title": "Command or code injection surface"
     },
     {
+      "capability": "identity_spoof",
       "evidence": "Name 'githab' is visually similar to known MCP server name 'github'.",
       "id": "MCP-050",
       "metadata": {},
+      "owasp_mcp": "MCP09",
       "payload_stored": false,
-      "reference": "OWASP MCP Top 10: Supply chain",
+      "reference": "OWASP MCP Top 10: Identity and package spoofing",
       "remediation": "Verify package provenance, repository ownership, and installation source before trusting this server.",
       "severity": "medium",
       "target": "githab",
@@ -123,6 +139,34 @@
       "medium": 1
     },
     "grade": "F"
+  },
+  "surface": {
+    "prompts": [],
+    "resources": [
+      {
+        "description_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "name": "env_file",
+        "schema_sha256": null
+      }
+    ],
+    "surface_version": 1,
+    "tools": [
+      {
+        "description_sha256": "e83a696a9af37f4753bfaa8814bc54a7620fe5f0578dafc0d3838c7a0651b949",
+        "name": "run_command",
+        "schema_sha256": "283fa0b855ad452e1ffc8c94502caed3f8359429db159b1669194bbe82311750"
+      },
+      {
+        "description_sha256": "e3c39484253d43acb8c460642a4ca14e40060274e3ac01b10f42166a9d6b48c0",
+        "name": "search",
+        "schema_sha256": "70d56fc588123a91facb406e0c895496c3d41ae2a27e23a87348a1e8984614e4"
+      },
+      {
+        "description_sha256": "1c20a2f7ba262c57a4ce4a6d7723e246aa3bc27f384a497ccd2c0dc192065107",
+        "name": "send_report",
+        "schema_sha256": "feb9c415e3bf0421d1fa59ab15aa1b334faec0c753ef7230f1cb50e182416582"
+      }
+    ]
   },
   "target": {
     "kind": "command",

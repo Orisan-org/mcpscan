@@ -93,7 +93,7 @@ The malicious fixture intentionally returns findings, so these commands exit `1`
 | ID | Title | Severity | Capability | OWASP MCP | Status |
 | --- | --- | --- | --- | --- | --- |
 | MCP-001 | Tool description prompt injection | high | prompt_anomaly | MCP03 | active |
-| MCP-002 | Tool definition drift | high | surface_drift | MCP03 | deferred |
+| MCP-002 | Tool definition drift | high | surface_drift | MCP03 | active with `--baseline` |
 | MCP-010 | Dangerous capability exposure | high | per finding | MCP02 | active |
 | MCP-020 | Secret exposure in metadata | critical | credential_access | MCP01 | active |
 | MCP-021 | Sensitive data or file exposure | high | data_exposure | MCP10 | active |
@@ -104,7 +104,31 @@ The malicious fixture intentionally returns findings, so these commands exit `1`
 
 Current coverage maps to OWASP MCP classes MCP01, MCP02, MCP03, MCP05, MCP07, MCP09, and MCP10. MCP04 supply chain analysis, MCP06 intent/flow issues, and MCP08 audit/telemetry gaps are out of scope for this alpha.
 
-MCP-002 baseline drift is deferred. MCP-050 is an offline heuristic that compares exposed server/tool names against a curated static seed list of common MCP server names. It does not monitor package registries and should not be treated as exhaustive ecosystem coverage.
+MCP-002 runs only when you provide a previous JSON report with `--baseline` or use `scan-config --baseline-dir`. MCP-050 is an offline heuristic that compares exposed server/tool names against a curated static seed list of common MCP server names. It does not monitor package registries and should not be treated as exhaustive ecosystem coverage.
+
+## Drift Detection
+
+JSON reports include a `surface` block with hash-only snapshots of exposed tools, resources, and prompts. Description text is whitespace-normalized before hashing. Schemas are canonicalized with sorted JSON keys before hashing. The report does not add raw descriptions, schemas, or MCP responses to drift evidence.
+
+Create a baseline report:
+
+```bash
+mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py" --output json --out /tmp/mcpscan-baseline.json
+```
+
+Compare a later scan against that baseline:
+
+```bash
+mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server_v2.py" --baseline /tmp/mcpscan-baseline.json
+```
+
+For explicit MCP config scanning, keep one baseline per server name:
+
+```bash
+mcpscan scan-config ./mcp.json --yes --baseline-dir /tmp/mcpscan-baselines
+```
+
+MCP-002 emits high-severity findings for added tools, removed tools, description hash changes, and schema hash changes. Evidence uses tool names and hash prefixes only.
 
 ## What Findings Look Like
 
@@ -170,7 +194,7 @@ Use `--severity-threshold low|medium|high|critical` to control when findings ret
 
 `mcpscan` does not secure the model, enforce runtime policy, block agent actions, modify the target server, monitor registries, upload findings, or use LLM verdicts.
 
-Dynamic probing, MCP-002 tool definition drift, HTML reports, registry monitoring, GitHub Action packaging, SaaS dashboards, and runtime enforcement are not part of this alpha release.
+Dynamic probing, HTML reports, registry monitoring, GitHub Action packaging, SaaS dashboards, and runtime enforcement are not part of this alpha release.
 
 `scan-config` only scans MCP config files that you explicitly pass or known local config paths it discovers. It does not scan arbitrary home-directory contents, source trees, browser profiles, or secrets stores.
 

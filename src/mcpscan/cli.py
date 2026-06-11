@@ -73,6 +73,10 @@ def scan(
         str, typer.Option("--output", help="Report output: table, json, md.")
     ] = "table",
     out: Annotated[Path | None, typer.Option("--out", help="Write report to path.")] = None,
+    baseline: Annotated[
+        Path | None,
+        typer.Option("--baseline", help="Previous JSON report to compare for MCP-002 drift."),
+    ] = None,
     severity_threshold: Annotated[
         Severity,
         typer.Option(
@@ -95,7 +99,9 @@ def scan(
         scan_target_model = resolve_target(
             target, command=command, transport=transport, headers=header
         )
-        result = asyncio.run(scan_target(scan_target_model, timeout_seconds=timeout))
+        result = asyncio.run(
+            scan_target(scan_target_model, timeout_seconds=timeout, baseline_path=baseline)
+        )
         rendered = _render(result, output=output, no_color=no_color)
         if out:
             out.write_text(rendered, encoding="utf-8")
@@ -143,6 +149,13 @@ def scan_config_command(
         str, typer.Option("--output", help="Report output: table, terminal, json, md, markdown.")
     ] = "table",
     out: Annotated[Path | None, typer.Option("--out", help="Write report to path.")] = None,
+    baseline_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "--baseline-dir",
+            help="Directory for per-server baseline JSON reports used by MCP-002 drift detection.",
+        ),
+    ] = None,
     severity_threshold: Annotated[
         Severity,
         typer.Option(
@@ -167,6 +180,7 @@ def scan_config_command(
                 only=selected,
                 consent=consent,
                 timeout_seconds=timeout,
+                baseline_dir=baseline_dir,
             )
         )
         rendered = _render_config(result, output=output, no_color=no_color)

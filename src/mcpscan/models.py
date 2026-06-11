@@ -92,12 +92,26 @@ class Finding(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class SurfaceItem(BaseModel):
+    name: str
+    description_sha256: str | None = None
+    schema_sha256: str | None = None
+
+
+class SurfaceSnapshot(BaseModel):
+    surface_version: int = 1
+    tools: list[SurfaceItem] = Field(default_factory=list)
+    resources: list[SurfaceItem] = Field(default_factory=list)
+    prompts: list[SurfaceItem] = Field(default_factory=list)
+
+
 class ScanResult(BaseModel):
     target: ScanTarget
     server: ServerInfo
     findings: list[Finding]
     counts: dict[str, int]
     grade: str
+    surface: SurfaceSnapshot
     warnings: list[str] = Field(default_factory=list)
 
 
