@@ -7,10 +7,12 @@
 - Added the approved build plan to `docs/BUILD_PLAN.md`.
 - Added stdio integration tests for benign, malicious, slow-start, timeout, and malformed subprocess behavior.
 - Added a network-marked stdio test for the reference filesystem server.
+- Added machine-readable check/finding metadata for capability class and OWASP MCP Top 10 mapping.
 
 ### Changed
 
 - Increased the CLI default connection timeout from 20 seconds to 90 seconds for cold-start stdio servers.
+- Expanded `mcpscan list-checks`, JSON reports, and Markdown reports with capability and OWASP MCP metadata.
 
 ### Fixed
 

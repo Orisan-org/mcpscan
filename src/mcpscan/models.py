@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from mcpscan.capabilities import Capability
+
 
 class Severity(str, Enum):
     INFO = "info"
@@ -79,6 +81,8 @@ class Finding(BaseModel):
     id: str
     title: str
     severity: Severity
+    capability: Capability
+    owasp_mcp: str
     target: str
     evidence: str
     remediation: str

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
+from mcpscan.capabilities import Capability
 from mcpscan.checks.base import Check
 from mcpscan.models import (
     ExposedPrompt,
@@ -41,7 +42,8 @@ class ToolDescriptionPromptInjectionCheck(Check):
     id = "MCP-001"
     title = "Tool description prompt injection"
     severity = Severity.HIGH
-    reference = "OWASP MCP Top 10: Tool poisoning"
+    default_capability = Capability.PROMPT_ANOMALY
+    owasp_mcp = "MCP03"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         findings: list[Finding] = []

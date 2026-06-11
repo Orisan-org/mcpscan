@@ -1,3 +1,4 @@
+from mcpscan.capabilities import Capability
 from mcpscan.models import Finding, Severity
 from mcpscan.utils.redact import mask_value, redact_secret
 from mcpscan.utils.severity import severity_gte
@@ -8,6 +9,8 @@ def test_finding_payload_stored_defaults_false() -> None:
         id="MCP-X",
         title="Example",
         severity=Severity.HIGH,
+        capability=Capability.OTHER,
+        owasp_mcp="MCP00",
         target="tool",
         evidence="redacted evidence",
         remediation="fix it",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from mcpscan.capabilities import Capability
 from mcpscan.checks.base import Check
 from mcpscan.checks.known_mcp_names import KNOWN_MCP_SERVER_NAMES
 from mcpscan.models import Finding, ScanContext, Severity
@@ -15,7 +16,8 @@ class LookalikeNameCheck(Check):
     id = "MCP-050"
     title = "Static known-name lookalike check"
     severity = Severity.MEDIUM
-    reference = "OWASP MCP Top 10: Supply chain"
+    default_capability = Capability.IDENTITY_SPOOF
+    owasp_mcp = "MCP09"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         findings: list[Finding] = []

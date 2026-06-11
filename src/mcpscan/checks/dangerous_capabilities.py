@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from mcpscan.capabilities import Capability
 from mcpscan.checks.base import Check
 from mcpscan.models import ExposedTool, Finding, ScanContext, Severity
 from mcpscan.utils.text import iter_strings
@@ -30,6 +31,15 @@ DANGER_CLASSES: dict[str, tuple[str, ...]] = {
     "code evaluation": ("eval", "execute_python", "node_eval", "javascript", "interpreter"),
     "credential access": ("token", "api_key", "secret", "credential", "environment variable"),
 }
+CAPABILITY_BY_DANGER_CLASS: dict[str, Capability] = {
+    "shell execution": Capability.SHELL_EXEC,
+    "file read": Capability.FILE_READ,
+    "file write": Capability.FILE_WRITE,
+    "network egress": Capability.NETWORK_EGRESS,
+    "outbound network request capability": Capability.NETWORK_EGRESS,
+    "code evaluation": Capability.CODE_EVAL,
+    "credential access": Capability.CREDENTIAL_ACCESS,
+}
 NETWORK_ACTION_SIGNALS = (
     "browser navigate",
     "crawl",
@@ -53,7 +63,8 @@ class DangerousCapabilityExposureCheck(Check):
     id = "MCP-010"
     title = "Dangerous capability exposure"
     severity = Severity.HIGH
-    reference = "OWASP MCP Top 10: Excessive permissions"
+    default_capability = Capability.OTHER
+    owasp_mcp = "MCP02"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         findings: list[Finding] = []
@@ -66,6 +77,7 @@ class DangerousCapabilityExposureCheck(Check):
                 findings.append(
                     self.finding(
                         severity=severity,
+                        capability=_capability_for_danger_class(danger_class),
                         target=tool.name,
                         evidence=f"Tool {tool.name!r} appears to expose {danger_class} based on name, description, or schema.",
                         remediation="Restrict dangerous tools, require explicit approval, and scope parameters as narrowly as possible.",
@@ -78,6 +90,7 @@ class DangerousCapabilityExposureCheck(Check):
                 findings.append(
                     self.finding(
                         target=resource.name or resource.uri,
+                        capability=_capability_for_danger_class(matched),
                         evidence=f"Resource {resource.uri!r} appears related to {matched}.",
                         remediation="Avoid exposing broad filesystem, credential, or network-capable resources over MCP.",
                     )
@@ -100,6 +113,10 @@ def _match_class(value: str) -> str | None:
             if signal in padded or signal in normalized:
                 return danger_class
     return None
+
+
+def _capability_for_danger_class(danger_class: str) -> Capability:
+    return CAPABILITY_BY_DANGER_CLASS.get(danger_class, Capability.OTHER)
 
 
 def _match_network_capability(tool: ExposedTool, haystack: str) -> tuple[str, Severity] | None:

@@ -17,6 +17,10 @@ def test_list_checks_works() -> None:
     assert result.exit_code == 0
     assert "MCP-001" in result.output
     assert "MCP-002" in result.output
+    assert "CAPABILITY" in result.output
+    assert "OWASP" in result.output
+    assert "prompt_anomaly" in result.output
+    assert "MCP03" in result.output
     assert "deferred" in result.output
 
 

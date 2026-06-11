@@ -4,6 +4,7 @@ import re
 from collections.abc import Iterable
 from typing import NamedTuple
 
+from mcpscan.capabilities import Capability
 from mcpscan.checks.base import Check
 from mcpscan.models import Finding, ScanContext, Severity
 from mcpscan.utils.redact import redact_secret
@@ -36,7 +37,8 @@ class SecretExposureInMetadataCheck(Check):
     id = "MCP-020"
     title = "Secret exposure in metadata"
     severity = Severity.CRITICAL
-    reference = "OWASP MCP Top 10: Credential exposure"
+    default_capability = Capability.CREDENTIAL_ACCESS
+    owasp_mcp = "MCP01"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         findings: list[Finding] = []

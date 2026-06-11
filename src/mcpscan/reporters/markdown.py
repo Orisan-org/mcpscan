@@ -29,6 +29,8 @@ def render_markdown(result: ScanResult) -> str:
                 "",
                 f"### {finding.id} - {finding.title}",
                 f"Severity: {finding.severity.value.title()}  ",
+                f"Capability: {finding.capability.value}  ",
+                f"OWASP MCP: {finding.owasp_mcp}  ",
                 f"Target: {finding.target}  ",
                 f"Payload stored: {str(finding.payload_stored).lower()}  ",
                 "",

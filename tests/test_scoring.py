@@ -1,3 +1,4 @@
+from mcpscan.capabilities import Capability
 from mcpscan.models import Finding, Severity
 from mcpscan.scoring import grade_for
 
@@ -7,6 +8,8 @@ def _finding(severity: Severity) -> Finding:
         id="MCP-X",
         title="title",
         severity=severity,
+        capability=Capability.OTHER,
+        owasp_mcp="MCP00",
         target="target",
         evidence="evidence",
         remediation="remediation",
