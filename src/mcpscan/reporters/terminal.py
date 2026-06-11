@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.table import Table
 
 from mcpscan.models import ConfigScanResult, ScanResult
+from mcpscan.scoring import effective_severity
 
 
 def render_terminal(result: ScanResult, *, no_color: bool = False) -> str:
@@ -20,9 +21,15 @@ def render_terminal(result: ScanResult, *, no_color: bool = False) -> str:
         f"({result.purpose_profile.category_source.value})"
     )
     console.print(f"Grade: {result.grade}")
-    table = Table("SEVERITY", "ID", "TARGET", "FINDING")
+    table = Table("SEVERITY", "VERDICT", "ID", "TARGET", "FINDING")
     for finding in result.findings:
-        table.add_row(finding.severity.value.upper(), finding.id, finding.target, finding.evidence)
+        table.add_row(
+            _severity_label(finding),
+            finding.contextual_verdict.value,
+            finding.id,
+            finding.target,
+            finding.evidence,
+        )
     if result.findings:
         console.print(table)
     else:
@@ -62,10 +69,14 @@ def render_config_terminal(result: ConfigScanResult, *, no_color: bool = False) 
         if server.env_names:
             console.print(f"  Env names observed: {len(server.env_names)}")
         if server.result.findings:
-            table = Table("SEVERITY", "ID", "TARGET", "FINDING")
+            table = Table("SEVERITY", "VERDICT", "ID", "TARGET", "FINDING")
             for finding in server.result.findings:
                 table.add_row(
-                    finding.severity.value.upper(), finding.id, finding.target, finding.evidence
+                    _severity_label(finding),
+                    finding.contextual_verdict.value,
+                    finding.id,
+                    finding.target,
+                    finding.evidence,
                 )
             console.print(table)
         else:
@@ -83,3 +94,10 @@ def render_config_terminal(result: ConfigScanResult, *, no_color: bool = False) 
     console.print("")
     console.print("Privacy: payload_stored=false for all findings")
     return buffer.getvalue()
+
+
+def _severity_label(finding) -> str:
+    adjusted = effective_severity(finding)
+    if adjusted == finding.severity:
+        return adjusted.value.upper()
+    return f"{adjusted.value.upper()} (was {finding.severity.value.upper()})"

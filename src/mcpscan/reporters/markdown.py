@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from mcpscan.models import ConfigScanResult, ScanResult
+from mcpscan.scoring import effective_severity
 
 
 def render_markdown(result: ScanResult) -> str:
@@ -32,11 +33,15 @@ def render_markdown(result: ScanResult) -> str:
             [
                 "",
                 f"### {finding.id} - {finding.title}",
-                f"Severity: {finding.severity.value.title()}",
+                f"Severity: {_severity_label(finding)}",
+                f"Verdict: {finding.contextual_verdict.value}",
                 f"Capability: {finding.capability.value}",
                 f"OWASP MCP: {finding.owasp_mcp}",
                 f"Target: {finding.target}",
                 f"Payload stored: {str(finding.payload_stored).lower()}",
+                "",
+                "Verdict reasoning:",
+                finding.verdict_reasoning,
                 "",
                 "Evidence:",
                 finding.evidence,
@@ -97,11 +102,15 @@ def render_config_markdown(result: ConfigScanResult) -> str:
                     [
                         "",
                         f"#### {finding.id} - {finding.title}",
-                        f"Severity: {finding.severity.value.title()}",
+                        f"Severity: {_severity_label(finding)}",
+                        f"Verdict: {finding.contextual_verdict.value}",
                         f"Capability: {finding.capability.value}",
                         f"OWASP MCP: {finding.owasp_mcp}",
                         f"Target: {finding.target}",
                         f"Payload stored: {str(finding.payload_stored).lower()}",
+                        "",
+                        "Verdict reasoning:",
+                        finding.verdict_reasoning,
                         "",
                         "Evidence:",
                         finding.evidence,
@@ -133,3 +142,10 @@ def _capability_list(capabilities: list) -> str:
     if not capabilities:
         return "none"
     return ", ".join(capability.value for capability in capabilities)
+
+
+def _severity_label(finding) -> str:
+    adjusted = effective_severity(finding)
+    if adjusted == finding.severity:
+        return adjusted.value.title()
+    return f"{adjusted.value.title()} (original: {finding.severity.value.title()})"

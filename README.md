@@ -99,7 +99,54 @@ mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py" --purp
 
 If no purpose flag is provided, `mcpscan` uses server metadata such as name and instructions when available. Ambiguous or empty text resolves to `unknown`.
 
-Purpose profiles are reporting metadata in this alpha. They do not change finding severity yet. The static taxonomy is documented in [docs/PURPOSE_TAXONOMY.md](docs/PURPOSE_TAXONOMY.md).
+Purpose profiles feed deterministic contextual verdicts and adjusted severities. The static taxonomy is documented in [docs/PURPOSE_TAXONOMY.md](docs/PURPOSE_TAXONOMY.md).
+
+## Context-Aware Verdicts
+
+`mcpscan` does not suppress findings. It labels each finding with a contextual verdict and keeps both original and adjusted severity when they differ.
+
+Verdicts are deterministic:
+
+- `expected_by_purpose`: the capability is inherent to the declared purpose and the check is downgrade-eligible.
+- `unexpected`: the capability is outside the purpose category, but the declared text mentions it.
+- `undeclared`: the capability is outside the purpose category and not mentioned in declared text.
+- `unadjudicated`: no declared purpose was available.
+
+Demo: expected filesystem access is reported for completeness:
+
+```bash
+mcpscan scan --command ".venv/bin/python tests/fixtures/purpose_filesystem_server.py" --purpose-category filesystem --no-color
+```
+
+Expected output includes:
+
+```text
+INFO (was HIGH)  expected_by_purpose  MCP-010  read_file
+```
+
+Demo: hidden file access in a weather server is escalated:
+
+```bash
+mcpscan scan --command ".venv/bin/python tests/fixtures/purpose_weather_file_server.py" --purpose "weather server" --no-color
+```
+
+Expected output includes:
+
+```text
+CRITICAL (was HIGH)  undeclared  MCP-010  read_file
+```
+
+Demo: declared URL fetching is still reported, but not escalated:
+
+```bash
+mcpscan scan --command ".venv/bin/python tests/fixtures/purpose_weather_fetch_server.py" --purpose "weather server that can fetch URLs" --no-color
+```
+
+Expected output includes:
+
+```text
+HIGH  unexpected  MCP-010  fetch
+```
 
 ## What mcpscan Checks
 

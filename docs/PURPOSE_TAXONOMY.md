@@ -1,8 +1,9 @@
 # Purpose taxonomy
 
 `mcpscan` uses a small, deterministic purpose taxonomy to describe what an MCP
-server claims to be. This is reporting metadata only in the current build; it
-does not change findings or severities until contextual adjudication is added.
+server claims to be. The contextual adjudicator uses this profile to label
+findings and adjust severity where a capability is inherent to the declared
+purpose. Findings are never suppressed.
 
 The taxonomy lives in:
 
@@ -15,6 +16,10 @@ Each category defines:
 - `keywords`: lowercase substrings matched against declared purpose text.
 - `expected_capabilities`: capability enum values considered inherent to that
   purpose.
+
+The file also defines `capability_keywords`, which let the adjudicator tell the
+difference between an unexpected capability that was at least declared in text
+and a capability that was not declared at all.
 
 Current categories:
 
