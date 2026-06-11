@@ -88,6 +88,19 @@ mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --o
 
 The malicious fixture intentionally returns findings, so these commands exit `1` when findings meet the default severity threshold.
 
+## Purpose Profiles
+
+Reports include a deterministic purpose profile describing what the MCP server claims to be. You can provide it explicitly:
+
+```bash
+mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py" --purpose-category filesystem
+mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py" --purpose "filesystem server for reading and writing files"
+```
+
+If no purpose flag is provided, `mcpscan` uses server metadata such as name and instructions when available. Ambiguous or empty text resolves to `unknown`.
+
+Purpose profiles are reporting metadata in this alpha. They do not change finding severity yet. The static taxonomy is documented in [docs/PURPOSE_TAXONOMY.md](docs/PURPOSE_TAXONOMY.md).
+
 ## What mcpscan Checks
 
 | ID | Title | Severity | Capability | OWASP MCP | Status |

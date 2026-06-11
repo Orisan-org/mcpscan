@@ -15,6 +15,10 @@ def render_terminal(result: ScanResult, *, no_color: bool = False) -> str:
     version = f" v{result.server.version}" if result.server.version else ""
     console.print(f"Server: {server}{version}")
     console.print(f"Transport: {result.target.transport.value}")
+    console.print(
+        f"Purpose: {result.purpose_profile.category.value} "
+        f"({result.purpose_profile.category_source.value})"
+    )
     console.print(f"Grade: {result.grade}")
     table = Table("SEVERITY", "ID", "TARGET", "FINDING")
     for finding in result.findings:
@@ -50,6 +54,10 @@ def render_config_terminal(result: ConfigScanResult, *, no_color: bool = False) 
         console.print(f"{server.name}")
         console.print(f"  Source: {server.source_path}")
         console.print(f"  Transport: {server.transport.value}")
+        console.print(
+            f"  Purpose: {server.result.purpose_profile.category.value} "
+            f"({server.result.purpose_profile.category_source.value})"
+        )
         console.print(f"  Grade: {server.result.grade}")
         if server.env_names:
             console.print(f"  Env names observed: {len(server.env_names)}")

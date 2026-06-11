@@ -13,6 +13,10 @@ def render_markdown(result: ScanResult) -> str:
         f"- Target: {target}",
         f"- Server: {server}",
         f"- Transport: {result.target.transport.value}",
+        f"- Purpose: {result.purpose_profile.category.value}",
+        f"- Purpose source: {result.purpose_profile.category_source.value}",
+        "- Expected capabilities: "
+        + _capability_list(result.purpose_profile.expected_capabilities),
         f"- Grade: {result.grade}",
         f"- Critical: {result.counts.get('critical', 0)}",
         f"- High: {result.counts.get('high', 0)}",
@@ -78,6 +82,10 @@ def render_config_markdown(result: ConfigScanResult) -> str:
                 f"### {server.name}",
                 f"- Source: {server.source_path}",
                 f"- Transport: {server.transport.value}",
+                f"- Purpose: {server.result.purpose_profile.category.value}",
+                f"- Purpose source: {server.result.purpose_profile.category_source.value}",
+                "- Expected capabilities: "
+                + _capability_list(server.result.purpose_profile.expected_capabilities),
                 f"- Grade: {server.result.grade}",
                 f"- Env names observed: {len(server.env_names)}",
                 f"- Findings: {len(server.result.findings)}",
@@ -119,3 +127,9 @@ def render_config_markdown(result: ConfigScanResult) -> str:
             lines.append(f"- {skipped.name}: {skipped.reason}")
 
     return "\n".join(lines) + "\n"
+
+
+def _capability_list(capabilities: list) -> str:
+    if not capabilities:
+        return "none"
+    return ", ".join(capability.value for capability in capabilities)

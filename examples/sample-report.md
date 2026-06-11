@@ -4,6 +4,9 @@
 - Target: .venv/bin/python tests/fixtures/malicious_server.py
 - Server: githab
 - Transport: stdio
+- Purpose: unknown
+- Purpose source: unknown
+- Expected capabilities: none
 - Grade: F
 - Critical: 1
 - High: 6

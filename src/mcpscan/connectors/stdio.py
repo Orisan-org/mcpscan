@@ -91,6 +91,7 @@ def _server_info(initialized: Any) -> ServerInfo:
     return ServerInfo(
         name=info.get("name"),
         version=info.get("version"),
+        instructions=data.get("instructions") or info.get("instructions"),
         protocol_version=data.get("protocolVersion") or data.get("protocol_version"),
         capabilities=capabilities if isinstance(capabilities, dict) else _to_dict(capabilities),
     )

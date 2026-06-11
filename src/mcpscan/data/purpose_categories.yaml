@@ -1,0 +1,135 @@
+filesystem:
+  keywords:
+    - filesystem
+    - file system
+    - read file
+    - write file
+    - directory
+    - folder
+    - path
+    - file server
+  expected_capabilities:
+    - file_read
+    - file_write
+    - data_exposure
+database:
+  keywords:
+    - database
+    - postgres
+    - postgresql
+    - sqlite
+    - mysql
+    - sql
+    - query database
+    - tables
+  expected_capabilities:
+    - data_exposure
+    - network_egress
+shell_execution:
+  keywords:
+    - shell
+    - command
+    - terminal
+    - bash
+    - powershell
+    - subprocess
+    - run command
+    - execute command
+  expected_capabilities:
+    - shell_exec
+    - file_read
+    - file_write
+code_execution:
+  keywords:
+    - code execution
+    - execute code
+    - eval
+    - interpreter
+    - python execution
+    - javascript execution
+    - run script
+    - execute script
+  expected_capabilities:
+    - code_eval
+    - file_read
+browser_automation:
+  keywords:
+    - browser
+    - playwright
+    - puppeteer
+    - navigate
+    - screenshot
+    - page automation
+    - web page
+    - dom
+  expected_capabilities:
+    - network_egress
+    - data_exposure
+api_wrapper:
+  keywords:
+    - api
+    - api wrapper
+    - rest
+    - graphql
+    - webhook
+    - http request
+    - external service
+    - integration
+  expected_capabilities:
+    - network_egress
+web_search:
+  keywords:
+    - web search
+    - search web
+    - internet search
+    - search engine
+    - brave search
+    - fetch results
+    - search results
+  expected_capabilities:
+    - network_egress
+communication:
+  keywords:
+    - slack
+    - email
+    - message
+    - messaging
+    - chat
+    - notification
+    - send message
+    - channel
+  expected_capabilities:
+    - network_egress
+    - data_exposure
+dev_tools:
+  keywords:
+    - git repository
+    - git server
+    - version control
+    - github
+    - gitlab
+    - repository
+    - issue tracker
+    - pull request
+    - developer tools
+    - continuous integration
+  expected_capabilities:
+    - file_read
+    - file_write
+    - shell_exec
+memory_store:
+  keywords:
+    - memory
+    - knowledge graph
+    - store memories
+    - retrieve memories
+    - notes
+    - entities
+    - observations
+    - persistent memory
+  expected_capabilities:
+    - data_exposure
+    - file_write
+unknown:
+  keywords: []
+  expected_capabilities: []
