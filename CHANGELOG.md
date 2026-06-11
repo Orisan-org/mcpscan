@@ -9,11 +9,15 @@
 - Added a network-marked stdio test for the reference filesystem server.
 - Added machine-readable check/finding metadata for capability class and OWASP MCP Top 10 mapping.
 - Added `mcpscan scan-config` for MCP client config files, including known config discovery, stdio consent prompts, remote URL entries, env redaction, and aggregate reports.
+- Added hash-only surface snapshots to JSON reports.
+- Added MCP-002 tool definition drift detection with `mcpscan scan --baseline`.
+- Added `scan-config --baseline-dir` for per-server baseline files.
 
 ### Changed
 
 - Increased the CLI default connection timeout from 20 seconds to 90 seconds for cold-start stdio servers.
 - Expanded `mcpscan list-checks`, JSON reports, and Markdown reports with capability and OWASP MCP metadata.
+- Changed MCP-002 from deferred to active when a baseline report is supplied.
 
 ### Fixed
 

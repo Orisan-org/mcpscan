@@ -22,7 +22,8 @@ def test_list_checks_works() -> None:
     assert "OWASP" in result.output
     assert "prompt_anomaly" in result.output
     assert "MCP03" in result.output
-    assert "deferred" in result.output
+    assert "surface_drift" in result.output
+    assert "active" in result.output
 
 
 def test_help_only_shows_working_commands() -> None:

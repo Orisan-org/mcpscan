@@ -17,6 +17,7 @@ def render_json(result: ScanResult) -> str:
         },
         "server": result.server.model_dump(mode="json"),
         "summary": {"grade": result.grade, "counts": result.counts},
+        "surface": result.surface.model_dump(mode="json"),
         "findings": [finding.model_dump(mode="json") for finding in result.findings],
         "warnings": result.warnings,
     }
@@ -49,6 +50,7 @@ def render_config_json(result: ConfigScanResult) -> str:
                     "grade": server.result.grade,
                     "counts": server.result.counts,
                 },
+                "surface": server.result.surface.model_dump(mode="json"),
                 "findings": [finding.model_dump(mode="json") for finding in server.result.findings],
                 "warnings": server.result.warnings,
             }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from mcpscan.checks.registry import active_checks
@@ -14,21 +15,30 @@ from mcpscan.models import (
     ScanTarget,
 )
 from mcpscan.scoring import count_findings, grade_for
+from mcpscan.surface import build_surface, compare_tool_surface, load_baseline_surface
 
 
-async def scan_target(target: ScanTarget, timeout_seconds: float = 20.0) -> ScanResult:
+async def scan_target(
+    target: ScanTarget,
+    timeout_seconds: float = 20.0,
+    baseline_path: Path | None = None,
+) -> ScanResult:
     ctx = await enumerate_target(target, timeout_seconds=timeout_seconds)
-    return scan_context(ctx)
+    return scan_context(ctx, baseline_path=baseline_path)
 
 
-def scan_context(ctx: ScanContext) -> ScanResult:
+def scan_context(ctx: ScanContext, baseline_path: Path | None = None) -> ScanResult:
+    surface = build_surface(ctx)
     findings = run_checks(ctx, active_checks())
+    if baseline_path:
+        findings.extend(compare_tool_surface(surface, load_baseline_surface(baseline_path)))
     return ScanResult(
         target=ctx.target,
         server=ctx.server,
         findings=findings,
         counts=count_findings(findings),
         grade=grade_for(findings),
+        surface=surface,
         warnings=ctx.warnings,
     )
 
