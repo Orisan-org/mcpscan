@@ -1,16 +1,30 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any
 
 from mcpscan.connectors.base import Connector
-from mcpscan.errors import EnumerationError
+from mcpscan.errors import EnumerationError, exception_summary
 from mcpscan.models import ScanContext, ServerInfo
 from mcpscan.normalizer import normalize_prompts, normalize_resources, normalize_tools
 
 
 class StdioConnector(Connector):
     async def enumerate(self) -> ScanContext:
+        try:
+            return await asyncio.wait_for(
+                self._enumerate(),
+                timeout=self.timeout_seconds,
+            )
+        except TimeoutError as exc:
+            raise EnumerationError(
+                f"stdio handshake timed out after {self.timeout_seconds:.0f}s. "
+                "Cold-start npx/uvx servers can take 30+ seconds on first run. "
+                "Retry, or raise --timeout."
+            ) from exc
+
+    async def _enumerate(self) -> ScanContext:
         if not self.target.command:
             raise EnumerationError("Missing stdio command.")
         try:
@@ -52,7 +66,9 @@ class StdioConnector(Connector):
         except EnumerationError:
             raise
         except Exception as exc:
-            raise EnumerationError(f"Failed to enumerate stdio MCP server: {exc}") from exc
+            raise EnumerationError(
+                f"Failed to enumerate stdio MCP server: {exception_summary(exc)}"
+            ) from exc
 
 
 async def _safe_list(session: Any, method_name: str, label: str, warnings: list[str]) -> Any:

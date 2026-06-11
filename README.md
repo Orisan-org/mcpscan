@@ -30,6 +30,8 @@ mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py"
 
 Important: stdio targets execute locally. Only scan commands you are willing to run on your machine.
 
+Cold-start `npx` or `uvx` servers can take 30+ seconds on first run. The default timeout is 90 seconds; use `--timeout` if your target needs more or less time.
+
 ## Scan A Streamable HTTP MCP Server
 
 Streamable HTTP is the primary tested remote transport in this release. This local fixture starts an MCP server on `127.0.0.1:8000`.
@@ -147,6 +149,12 @@ ruff check .
 pytest
 python -m mcpscan --help
 python -m mcpscan list-checks
+```
+
+Network-dependent stdio checks are excluded from default `pytest`. To run them manually:
+
+```bash
+pytest -m network
 ```
 
 Release-readiness smoke checks:
