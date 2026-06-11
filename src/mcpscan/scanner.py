@@ -10,10 +10,12 @@ from mcpscan.models import (
     ExposedPrompt,
     ExposedResource,
     ExposedTool,
+    PurposeCategory,
     ScanContext,
     ScanResult,
     ScanTarget,
 )
+from mcpscan.purpose import build_purpose_profile
 from mcpscan.scoring import count_findings, grade_for
 from mcpscan.surface import build_surface, compare_tool_surface, load_baseline_surface
 
@@ -22,13 +24,28 @@ async def scan_target(
     target: ScanTarget,
     timeout_seconds: float = 20.0,
     baseline_path: Path | None = None,
+    purpose_category: PurposeCategory | None = None,
+    purpose_text: str | None = None,
 ) -> ScanResult:
     ctx = await enumerate_target(target, timeout_seconds=timeout_seconds)
-    return scan_context(ctx, baseline_path=baseline_path)
+    return scan_context(
+        ctx,
+        baseline_path=baseline_path,
+        purpose_category=purpose_category,
+        purpose_text=purpose_text,
+    )
 
 
-def scan_context(ctx: ScanContext, baseline_path: Path | None = None) -> ScanResult:
+def scan_context(
+    ctx: ScanContext,
+    baseline_path: Path | None = None,
+    purpose_category: PurposeCategory | None = None,
+    purpose_text: str | None = None,
+) -> ScanResult:
     surface = build_surface(ctx)
+    purpose_profile = build_purpose_profile(
+        ctx, purpose_category=purpose_category, purpose_text=purpose_text
+    )
     findings = run_checks(ctx, active_checks())
     if baseline_path:
         findings.extend(compare_tool_surface(surface, load_baseline_surface(baseline_path)))
@@ -39,6 +56,7 @@ def scan_context(ctx: ScanContext, baseline_path: Path | None = None) -> ScanRes
         counts=count_findings(findings),
         grade=grade_for(findings),
         surface=surface,
+        purpose_profile=purpose_profile,
         warnings=ctx.warnings,
     )
 

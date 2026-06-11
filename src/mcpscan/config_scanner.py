@@ -11,6 +11,7 @@ from mcpscan.models import (
     ConfigServerFailure,
     ConfigServerResult,
     ConfiguredServer,
+    PurposeCategory,
     ScanTarget,
     SkippedConfiguredServer,
     TargetKind,
@@ -32,6 +33,8 @@ async def scan_mcp_configs(
     consent: ConsentCallback | None = None,
     timeout_seconds: float = 90.0,
     baseline_dir: Path | None = None,
+    purpose_category: PurposeCategory | None = None,
+    purpose_text: str | None = None,
 ) -> ConfigScanResult:
     loaded = load_mcp_configs(config_path)
     selected = [server for server in loaded.servers if not only or server.name in only]
@@ -71,6 +74,8 @@ async def scan_mcp_configs(
                 _target_for_server(server),
                 timeout_seconds=timeout_seconds,
                 baseline_path=baseline_path if baseline_path and baseline_path.exists() else None,
+                purpose_category=purpose_category,
+                purpose_text=purpose_text,
             )
             if baseline_path:
                 baseline_path.write_text(render_json(result), encoding="utf-8")

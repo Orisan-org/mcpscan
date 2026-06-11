@@ -13,7 +13,7 @@ from mcpscan.checks.registry import check_catalogue
 from mcpscan.config_scanner import scan_mcp_configs
 from mcpscan.constants import EXIT_ENUMERATION, EXIT_FINDINGS, EXIT_INTERNAL, EXIT_OK, EXIT_USAGE
 from mcpscan.errors import EnumerationError, McpScanError, TargetError
-from mcpscan.models import ConfiguredServer, Severity, Transport
+from mcpscan.models import ConfiguredServer, PurposeCategory, Severity, Transport
 from mcpscan.reporters.json_reporter import render_config_json, render_json
 from mcpscan.reporters.markdown import render_config_markdown, render_markdown
 from mcpscan.reporters.terminal import render_config_terminal, render_terminal
@@ -77,6 +77,17 @@ def scan(
         Path | None,
         typer.Option("--baseline", help="Previous JSON report to compare for MCP-002 drift."),
     ] = None,
+    purpose_category: Annotated[
+        PurposeCategory | None,
+        typer.Option(
+            "--purpose-category",
+            help="Declared purpose category for deterministic purpose profiling.",
+        ),
+    ] = None,
+    purpose: Annotated[
+        str | None,
+        typer.Option("--purpose", help="Free-text declared purpose for deterministic profiling."),
+    ] = None,
     severity_threshold: Annotated[
         Severity,
         typer.Option(
@@ -100,7 +111,13 @@ def scan(
             target, command=command, transport=transport, headers=header
         )
         result = asyncio.run(
-            scan_target(scan_target_model, timeout_seconds=timeout, baseline_path=baseline)
+            scan_target(
+                scan_target_model,
+                timeout_seconds=timeout,
+                baseline_path=baseline,
+                purpose_category=purpose_category,
+                purpose_text=purpose,
+            )
         )
         rendered = _render(result, output=output, no_color=no_color)
         if out:
@@ -156,6 +173,17 @@ def scan_config_command(
             help="Directory for per-server baseline JSON reports used by MCP-002 drift detection.",
         ),
     ] = None,
+    purpose_category: Annotated[
+        PurposeCategory | None,
+        typer.Option(
+            "--purpose-category",
+            help="Declared purpose category applied to scanned servers.",
+        ),
+    ] = None,
+    purpose: Annotated[
+        str | None,
+        typer.Option("--purpose", help="Free-text declared purpose applied to scanned servers."),
+    ] = None,
     severity_threshold: Annotated[
         Severity,
         typer.Option(
@@ -181,6 +209,8 @@ def scan_config_command(
                 consent=consent,
                 timeout_seconds=timeout,
                 baseline_dir=baseline_dir,
+                purpose_category=purpose_category,
+                purpose_text=purpose,
             )
         )
         rendered = _render_config(result, output=output, no_color=no_color)

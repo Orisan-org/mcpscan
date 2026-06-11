@@ -27,6 +27,26 @@ class TargetKind(str, Enum):
     URL = "url"
 
 
+class PurposeCategory(str, Enum):
+    FILESYSTEM = "filesystem"
+    DATABASE = "database"
+    SHELL_EXECUTION = "shell_execution"
+    CODE_EXECUTION = "code_execution"
+    BROWSER_AUTOMATION = "browser_automation"
+    API_WRAPPER = "api_wrapper"
+    WEB_SEARCH = "web_search"
+    COMMUNICATION = "communication"
+    DEV_TOOLS = "dev_tools"
+    MEMORY_STORE = "memory_store"
+    UNKNOWN = "unknown"
+
+
+class PurposeSource(str, Enum):
+    FLAG = "flag"
+    SERVER_INFO = "server_info"
+    UNKNOWN = "unknown"
+
+
 class ScanTarget(BaseModel):
     raw: str | None = None
     kind: TargetKind
@@ -40,6 +60,7 @@ class ScanTarget(BaseModel):
 class ServerInfo(BaseModel):
     name: str | None = None
     version: str | None = None
+    instructions: str | None = None
     protocol_version: str | None = None
     capabilities: dict[str, Any] = Field(default_factory=dict)
 
@@ -105,6 +126,13 @@ class SurfaceSnapshot(BaseModel):
     prompts: list[SurfaceItem] = Field(default_factory=list)
 
 
+class PurposeProfile(BaseModel):
+    category: PurposeCategory = PurposeCategory.UNKNOWN
+    category_source: PurposeSource = PurposeSource.UNKNOWN
+    declared_text: str = ""
+    expected_capabilities: list[Capability] = Field(default_factory=list)
+
+
 class ScanResult(BaseModel):
     target: ScanTarget
     server: ServerInfo
@@ -112,6 +140,7 @@ class ScanResult(BaseModel):
     counts: dict[str, int]
     grade: str
     surface: SurfaceSnapshot
+    purpose_profile: PurposeProfile
     warnings: list[str] = Field(default_factory=list)
 
 

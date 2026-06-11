@@ -105,6 +105,12 @@
       "title": "Static known-name lookalike check"
     }
   ],
+  "purpose_profile": {
+    "category": "unknown",
+    "category_source": "unknown",
+    "declared_text": "githab",
+    "expected_capabilities": []
+  },
   "scanner": {
     "name": "mcpscan",
     "version": "0.1.0"
@@ -126,6 +132,7 @@
         "listChanged": false
       }
     },
+    "instructions": null,
     "name": "githab",
     "protocol_version": "2025-11-25",
     "version": "1.27.2"
