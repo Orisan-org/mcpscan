@@ -16,6 +16,7 @@ from mcpscan.errors import EnumerationError, McpScanError, TargetError
 from mcpscan.models import ConfiguredServer, PurposeCategory, Severity, Transport
 from mcpscan.reporters.json_reporter import render_config_json, render_json
 from mcpscan.reporters.markdown import render_config_markdown, render_markdown
+from mcpscan.reporters.sarif import render_sarif
 from mcpscan.reporters.terminal import render_config_terminal, render_terminal
 from mcpscan.scanner import scan_target
 from mcpscan.scoring import effective_severity
@@ -71,7 +72,7 @@ def scan(
         list[str] | None, typer.Option("--header", help="Remote header 'Name: Value'.")
     ] = None,
     output: Annotated[
-        str, typer.Option("--output", help="Report output: table, json, md.")
+        str, typer.Option("--output", help="Report output: table, json, md, sarif.")
     ] = "table",
     out: Annotated[Path | None, typer.Option("--out", help="Write report to path.")] = None,
     baseline: Annotated[
@@ -252,7 +253,9 @@ def _render(result, *, output: str, no_color: bool) -> str:
         return render_json(result)
     if output == "md":
         return render_markdown(result)
-    raise TargetError("--output must be one of: table, json, md.")
+    if output == "sarif":
+        return render_sarif(result)
+    raise TargetError("--output must be one of: table, json, md, sarif.")
 
 
 def _render_config(result, *, output: str, no_color: bool) -> str:
