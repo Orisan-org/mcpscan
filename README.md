@@ -79,14 +79,17 @@ mcpscan scan http://127.0.0.1:8000/mcp --transport http
 
 Remote scans do not contact external services except the MCP server URL you provide. SSE is wired through the official MCP SDK when available, but it is not integration-tested in this release.
 
-## Write JSON Or Markdown Reports
+## Write JSON, Markdown, Or SARIF Reports
 
 ```bash
 mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output json --out /tmp/mcpscan-report.json
 mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output md --out /tmp/mcpscan-report.md
+mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output sarif --out /tmp/mcpscan-report.sarif
 ```
 
 The malicious fixture intentionally returns findings, so these commands exit `1` when findings meet the default severity threshold.
+
+For GitHub code scanning upload, see [docs/CI.md](docs/CI.md).
 
 ## Purpose Profiles
 

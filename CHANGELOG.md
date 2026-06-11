@@ -14,6 +14,7 @@
 - Added `scan-config --baseline-dir` for per-server baseline files.
 - Added deterministic purpose profiles and a documented static purpose taxonomy.
 - Added deterministic contextual verdicts with adjusted severity.
+- Added SARIF 2.1.0 output for single-target scans.
 
 ### Changed
 
