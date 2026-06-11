@@ -34,6 +34,7 @@ class ScanTarget(BaseModel):
     command: list[str] | None = None
     url: str | None = None
     headers: dict[str, str] = Field(default_factory=dict)
+    env: dict[str, str] = Field(default_factory=dict, exclude=True)
 
 
 class ServerInfo(BaseModel):
@@ -98,3 +99,55 @@ class ScanResult(BaseModel):
     counts: dict[str, int]
     grade: str
     warnings: list[str] = Field(default_factory=list)
+
+
+class ConfiguredServer(BaseModel):
+    name: str
+    source_path: str
+    transport: Transport
+    command: list[str] | None = None
+    url: str | None = None
+    headers: dict[str, str] = Field(default_factory=dict, exclude=True)
+    env: dict[str, str] = Field(default_factory=dict, exclude=True)
+    env_names: list[str] = Field(default_factory=list)
+
+
+class SkippedConfiguredServer(BaseModel):
+    name: str
+    source_path: str
+    reason: str
+    env_names: list[str] = Field(default_factory=list)
+
+
+class ConfigServerResult(BaseModel):
+    name: str
+    source_path: str
+    transport: Transport
+    env_names: list[str] = Field(default_factory=list)
+    result: ScanResult
+
+
+class ConfigServerFailure(BaseModel):
+    name: str
+    source_path: str
+    transport: Transport | None = None
+    error: str
+    env_names: list[str] = Field(default_factory=list)
+
+
+class ConfigScanSummary(BaseModel):
+    configs_found: int
+    servers_total: int
+    servers_scanned: int
+    servers_failed: int
+    servers_skipped: int
+    findings_total: int
+    worst_grade: str
+
+
+class ConfigScanResult(BaseModel):
+    config_paths: list[str] = Field(default_factory=list)
+    server_results: list[ConfigServerResult] = Field(default_factory=list)
+    failures: list[ConfigServerFailure] = Field(default_factory=list)
+    skipped: list[SkippedConfiguredServer] = Field(default_factory=list)
+    summary: ConfigScanSummary

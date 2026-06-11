@@ -37,7 +37,11 @@ class StdioConnector(Connector):
 
         command = self.target.command[0]
         args = self.target.command[1:]
-        params = StdioServerParameters(command=command, args=args)
+        params = StdioServerParameters(
+            command=command,
+            args=args,
+            env=self.target.env or None,
+        )
         warnings: list[str] = []
 
         try:

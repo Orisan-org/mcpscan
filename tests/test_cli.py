@@ -1,3 +1,4 @@
+import json
 import shutil
 import subprocess
 import sys
@@ -29,6 +30,7 @@ def test_help_only_shows_working_commands() -> None:
 
     assert result.exit_code == 0
     assert "scan" in result.output
+    assert "scan-config" in result.output
     assert "list-checks" in result.output
     assert "version" in result.output
     assert "baseline" not in result.output
@@ -49,7 +51,7 @@ def test_scan_local_config_path_explains_unsupported_state(tmp_path) -> None:
     result = runner.invoke(app, ["scan", str(config)])
 
     assert result.exit_code == 2
-    assert "Local config/path scanning is not supported yet" in result.output
+    assert "scan-config" in result.output
 
 
 def test_scan_rejects_header_with_stdio_command() -> None:
@@ -108,3 +110,89 @@ def test_console_script_help_works() -> None:
     assert "scan" in result.stdout
     assert "baseline" not in result.stdout
     assert "diff" not in result.stdout
+
+
+def write_config(tmp_path, payload: dict) -> Path:
+    path = tmp_path / "mcp.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_scan_config_help_works() -> None:
+    result = runner.invoke(app, ["scan-config", "--help"])
+
+    assert result.exit_code == 0
+    assert "scan-config" in result.output
+    assert "CONFIG_PATH" in result.output
+    assert "Execute configured" in result.output
+
+
+def test_scan_config_yes_json_report(tmp_path) -> None:
+    config = write_config(
+        tmp_path,
+        {
+            "mcpServers": {
+                "benign": {
+                    "command": sys.executable,
+                    "args": ["tests/fixtures/benign_server.py"],
+                },
+                "malicious": {
+                    "command": sys.executable,
+                    "args": ["tests/fixtures/malicious_server.py"],
+                    "env": {"SECRET": "hunter2"},
+                },
+            }
+        },
+    )
+    out = tmp_path / "report.json"
+
+    result = runner.invoke(
+        app,
+        ["scan-config", str(config), "--yes", "--output", "json", "--out", str(out)],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["config"]["servers_total"] == 2
+    assert payload["config"]["servers_scanned"] == 2
+    findings = [finding for server in payload["server_results"] for finding in server["findings"]]
+    assert findings
+    assert all(finding["payload_stored"] is False for finding in findings)
+    assert "hunter2" not in out.read_text(encoding="utf-8")
+
+
+def test_scan_config_without_yes_can_decline_execution(tmp_path) -> None:
+    sentinel = tmp_path / "executed.txt"
+    config = write_config(
+        tmp_path,
+        {
+            "mcpServers": {
+                "would-execute": {
+                    "command": sys.executable,
+                    "args": [
+                        "-c",
+                        f"from pathlib import Path; Path({str(sentinel)!r}).write_text('x')",
+                    ],
+                }
+            }
+        },
+    )
+
+    result = runner.invoke(app, ["scan-config", str(config)], input="n\n")
+
+    assert result.exit_code == 0
+    assert "Execute and scan?" in result.output
+    assert "no consent" in result.output
+    assert not sentinel.exists()
+
+
+def test_scan_config_all_failures_exit_enumeration(tmp_path) -> None:
+    config = write_config(
+        tmp_path,
+        {"mcpServers": {"bad": {"command": sys.executable, "args": ["-c", "raise SystemExit(1)"]}}},
+    )
+
+    result = runner.invoke(app, ["scan-config", str(config), "--yes"])
+
+    assert result.exit_code == 3
+    assert "Failures:" in result.output

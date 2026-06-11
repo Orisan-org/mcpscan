@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "benign": {
+      "command": ".venv/bin/python",
+      "args": ["tests/fixtures/benign_server.py"]
+    },
+    "malicious": {
+      "command": ".venv/bin/python",
+      "args": ["tests/fixtures/malicious_server.py"],
+      "env": {
+        "API_TOKEN": "synthetic-secret-value"
+      }
+    },
+    "unreachable-remote": {
+      "url": "http://127.0.0.1:1/mcp"
+    },
+    "malformed": {
+      "command": "python",
+      "args": [1]
+    }
+  }
+}
