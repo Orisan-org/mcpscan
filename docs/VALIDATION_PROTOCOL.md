@@ -42,6 +42,7 @@ Expected commands are only:
 - `version`
 - `list-checks`
 - `scan`
+- `scan-config`
 
 If `baseline` or `diff` appears in help output, the shell is resolving a stale global install. Reinstall into the active virtual environment and rerun `which mcpscan`.
 
@@ -50,6 +51,7 @@ To avoid `PATH` confusion during validation, prefer:
 ```bash
 python -m mcpscan --help
 python -m mcpscan scan --command "<redacted command>"
+python -m mcpscan scan-config ./mcp.json --yes
 ```
 
 If editable install fails while fetching build dependencies such as `hatchling`, fix network/dependency installation first. Do not trust scan output from a shell that fell back to a global `mcpscan` binary after install failure.
@@ -69,6 +71,18 @@ If editable install fails while fetching build dependencies such as `hatchling`,
 6. Treat exit codes `2`, `3`, and `4` as usability or reliability data to record under crash/error behavior.
 7. Do not commit the raw JSON report unless it has been reviewed and sanitized.
 
+## Running A Config Validation Scan
+
+Use `scan-config` when the target is an MCP client config:
+
+```bash
+mcpscan scan-config ./mcp.json --yes --output json --out /tmp/mcpscan-config.json || test $? -eq 1
+```
+
+Only use `--yes` after reading the config and confirming each stdio command is safe to execute. Without `--yes`, `mcpscan` prints each stdio command and asks for consent before launching it.
+
+Do not validate with real production env values. If an `env` object is present, use fake values. Reports may show env names/counts, but must not contain env values.
+
 ## JSON Safety Checks
 
 Before recording validation notes, verify the report preserves the evidence contract:
@@ -81,7 +95,14 @@ from pathlib import Path
 path = Path("/tmp/mcpscan-target.json")
 payload = json.loads(path.read_text())
 findings = payload.get("findings", [])
+if not findings and "server_results" in payload:
+    findings = [
+        finding
+        for server in payload.get("server_results", [])
+        for finding in server.get("findings", [])
+    ]
 print("summary_grade", payload.get("summary", {}).get("grade"))
+print("summary_worst_grade", payload.get("summary", {}).get("worst_grade"))
 print("finding_count", len(findings))
 print("payload_stored_false", all(f.get("payload_stored") is False for f in findings))
 PY

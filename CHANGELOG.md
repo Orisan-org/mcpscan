@@ -8,6 +8,7 @@
 - Added stdio integration tests for benign, malicious, slow-start, timeout, and malformed subprocess behavior.
 - Added a network-marked stdio test for the reference filesystem server.
 - Added machine-readable check/finding metadata for capability class and OWASP MCP Top 10 mapping.
+- Added `mcpscan scan-config` for MCP client config files, including known config discovery, stdio consent prompts, remote URL entries, env redaction, and aggregate reports.
 
 ### Changed
 

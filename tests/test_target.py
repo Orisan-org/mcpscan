@@ -66,7 +66,7 @@ def test_rejects_headers_for_stdio_command() -> None:
 
 
 def test_rejects_nonexistent_local_path_with_config_message() -> None:
-    with pytest.raises(TargetError, match="Local config/path scanning is not supported"):
+    with pytest.raises(TargetError, match="scan-config"):
         resolve_target("/tmp/does-not-exist", command=None, transport=None)
 
 
@@ -74,10 +74,10 @@ def test_rejects_existing_mcp_json_with_config_message(tmp_path) -> None:
     config = tmp_path / "mcp.json"
     config.write_text("{}", encoding="utf-8")
 
-    with pytest.raises(TargetError, match="Local config/path scanning is not supported"):
+    with pytest.raises(TargetError, match="scan-config"):
         resolve_target(str(config), command=None, transport=None)
 
 
 def test_rejects_path_like_value_with_config_message() -> None:
-    with pytest.raises(TargetError, match="Local config/path scanning is not supported"):
+    with pytest.raises(TargetError, match="scan-config"):
         resolve_target("./mcp.json", command=None, transport=None)

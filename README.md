@@ -20,6 +20,35 @@ Use `python -m venv .venv` instead if your system exposes Python 3 as `python`. 
 
 The benign fixture should return grade `A` with no findings.
 
+## Scan Your Client Configs
+
+Use `scan-config` when a review starts from an MCP client config instead of a single server command:
+
+```bash
+mcpscan scan-config ./mcp.json --yes
+mcpscan scan-config ./.mcp.json --yes --output json --out /tmp/mcpscan-config-report.json
+```
+
+Supported config shape:
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp/mcpscan-safe-root"]
+    },
+    "remote-dev": {
+      "url": "http://127.0.0.1:8000/mcp"
+    }
+  }
+}
+```
+
+`scan-config` scans explicit config paths and can also discover known local MCP config locations for Claude Desktop, Claude Code, Cursor, and Windsurf. Stdio entries prompt before local execution unless `--yes` is provided. Remote URL entries do not prompt because they do not execute local commands.
+
+Environment values from config files are passed to stdio servers but are redacted from all output. Reports show env names/counts only.
+
 ## Scan A Stdio MCP Server
 
 Stdio scans launch the command you provide, perform the MCP handshake, enumerate the server, and then run checks over the exposed definitions.
@@ -143,7 +172,7 @@ Use `--severity-threshold low|medium|high|critical` to control when findings ret
 
 Dynamic probing, MCP-002 tool definition drift, HTML reports, registry monitoring, GitHub Action packaging, SaaS dashboards, and runtime enforcement are not part of this alpha release.
 
-Local MCP config/path scanning is not supported yet. To scan stdio MCP servers, pass the server launch command with `--command`; to scan remote MCP servers, pass an `http(s)` URL.
+`scan-config` only scans MCP config files that you explicitly pass or known local config paths it discovers. It does not scan arbitrary home-directory contents, source trees, browser profiles, or secrets stores.
 
 ## Development And Verification
 
@@ -154,6 +183,7 @@ ruff format --check .
 ruff check .
 pytest
 python -m mcpscan --help
+python -m mcpscan scan-config --help
 python -m mcpscan list-checks
 ```
 
@@ -169,6 +199,7 @@ Release-readiness smoke checks:
 mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py"
 mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --severity-threshold high
 mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output json --out /tmp/mcpscan-smoke.json || test $? -eq 1
+mcpscan scan-config tests/fixtures/configs/mixed.json --yes --output json --out /tmp/mcpscan-config-smoke.json || test $? -eq 1
 ```
 
 For Streamable HTTP, start the local fixture and scan it:

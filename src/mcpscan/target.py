@@ -62,10 +62,10 @@ def resolve_target(
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         if _looks_like_local_path_or_config(target):
             raise TargetError(
-                "Local config/path scanning is not supported yet. To scan a stdio MCP server, pass --command. To scan remote MCP, pass an http(s) URL."
+                "Local config/path scanning is handled by 'mcpscan scan-config <path>'. To scan one stdio MCP server, pass --command. To scan one remote MCP server, pass an http(s) URL."
             )
         raise TargetError(
-            "Target must be an http(s) URL unless --command is provided. Local config/path scanning is not supported yet."
+            "Target must be an http(s) URL unless --command is provided. Use 'mcpscan scan-config <path>' for MCP config files."
         )
     resolved_transport = transport or Transport.HTTP
     if resolved_transport == Transport.STDIO:

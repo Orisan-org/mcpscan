@@ -45,6 +45,12 @@ from pathlib import Path
 path = Path(sys.argv[1])
 payload = json.loads(path.read_text())
 findings = payload.get("findings", [])
+if not findings and "server_results" in payload:
+    findings = [
+        finding
+        for server in payload.get("server_results", [])
+        for finding in server.get("findings", [])
+    ]
 if not findings:
     raise SystemExit(f"{path} did not contain findings")
 if not all(finding.get("payload_stored") is False for finding in findings):
@@ -125,5 +131,22 @@ run_expected_failure "$PYTHON_BIN" -m mcpscan scan \
   --output json \
   --out "$REMOTE_JSON"
 verify_json_contract "$REMOTE_JSON"
+
+echo "== explicit config fixture =="
+CONFIG_JSON="$TMP_DIR/config.json"
+run_expected_failure "$PYTHON_BIN" -m mcpscan scan-config \
+  tests/fixtures/configs/mixed.json \
+  --yes \
+  --output json \
+  --out "$CONFIG_JSON"
+verify_json_contract "$CONFIG_JSON"
+"$PYTHON_BIN" - "$CONFIG_JSON" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+if "synthetic-secret-value" in path.read_text():
+    raise SystemExit(f"{path} contains raw env value")
+PY
 
 echo "validation smoke passed"

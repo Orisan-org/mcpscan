@@ -10,12 +10,13 @@ from rich.table import Table
 
 from mcpscan import __version__
 from mcpscan.checks.registry import check_catalogue
+from mcpscan.config_scanner import scan_mcp_configs
 from mcpscan.constants import EXIT_ENUMERATION, EXIT_FINDINGS, EXIT_INTERNAL, EXIT_OK, EXIT_USAGE
 from mcpscan.errors import EnumerationError, McpScanError, TargetError
-from mcpscan.models import Severity, Transport
-from mcpscan.reporters.json_reporter import render_json
-from mcpscan.reporters.markdown import render_markdown
-from mcpscan.reporters.terminal import render_terminal
+from mcpscan.models import ConfiguredServer, Severity, Transport
+from mcpscan.reporters.json_reporter import render_config_json, render_json
+from mcpscan.reporters.markdown import render_config_markdown, render_markdown
+from mcpscan.reporters.terminal import render_config_terminal, render_terminal
 from mcpscan.scanner import scan_target
 from mcpscan.target import resolve_target
 from mcpscan.utils.severity import severity_gte
@@ -122,6 +123,80 @@ def scan(
         raise typer.Exit(EXIT_INTERNAL) from exc
 
 
+@app.command("scan-config")
+def scan_config_command(
+    config_path: Annotated[
+        Path | None,
+        typer.Argument(
+            help="Optional explicit MCP config JSON file. If omitted, known config paths are discovered."
+        ),
+    ] = None,
+    yes: Annotated[
+        bool,
+        typer.Option("--yes", help="Execute configured stdio servers without prompting."),
+    ] = False,
+    only: Annotated[
+        str | None,
+        typer.Option("--only", help="Comma-separated server names to scan."),
+    ] = None,
+    output: Annotated[
+        str, typer.Option("--output", help="Report output: table, terminal, json, md, markdown.")
+    ] = "table",
+    out: Annotated[Path | None, typer.Option("--out", help="Write report to path.")] = None,
+    severity_threshold: Annotated[
+        Severity,
+        typer.Option(
+            "--severity-threshold", help="Exit 1 if any finding is at or above this severity."
+        ),
+    ] = Severity.HIGH,
+    timeout: Annotated[
+        float,
+        typer.Option(
+            "--timeout",
+            help="Per-server connection timeout in seconds. Cold-start npx/uvx servers may need 30+ seconds.",
+        ),
+    ] = 90.0,
+    no_color: Annotated[bool, typer.Option("--no-color", help="Disable terminal colors.")] = False,
+) -> None:
+    try:
+        selected = _parse_only(only)
+        consent = None if yes else _confirm_stdio_server
+        result = asyncio.run(
+            scan_mcp_configs(
+                config_path,
+                only=selected,
+                consent=consent,
+                timeout_seconds=timeout,
+            )
+        )
+        rendered = _render_config(result, output=output, no_color=no_color)
+        if out:
+            out.write_text(rendered, encoding="utf-8")
+        else:
+            typer.echo(rendered, nl=False)
+
+        if not result.server_results and result.failures:
+            raise typer.Exit(EXIT_ENUMERATION)
+        if any(
+            severity_gte(finding.severity, severity_threshold)
+            for server in result.server_results
+            for finding in server.result.findings
+        ):
+            raise typer.Exit(EXIT_FINDINGS)
+        raise typer.Exit(EXIT_OK)
+    except TargetError as exc:
+        typer.echo(f"Input error: {exc}", err=True)
+        raise typer.Exit(EXIT_USAGE) from exc
+    except McpScanError as exc:
+        typer.echo(f"Scanner error: {exc}", err=True)
+        raise typer.Exit(exc.exit_code) from exc
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        typer.echo(f"Internal scanner error: {exc}", err=True)
+        raise typer.Exit(EXIT_INTERNAL) from exc
+
+
 def _render(result, *, output: str, no_color: bool) -> str:
     if output == "table":
         return render_terminal(result, no_color=no_color)
@@ -130,3 +205,32 @@ def _render(result, *, output: str, no_color: bool) -> str:
     if output == "md":
         return render_markdown(result)
     raise TargetError("--output must be one of: table, json, md.")
+
+
+def _render_config(result, *, output: str, no_color: bool) -> str:
+    if output in {"table", "terminal"}:
+        return render_config_terminal(result, no_color=no_color)
+    if output == "json":
+        return render_config_json(result)
+    if output in {"md", "markdown"}:
+        return render_config_markdown(result)
+    raise TargetError("--output must be one of: table, terminal, json, md, markdown.")
+
+
+def _parse_only(value: str | None) -> set[str] | None:
+    if value is None:
+        return None
+    names = {item.strip() for item in value.split(",") if item.strip()}
+    if not names:
+        raise TargetError("--only must include at least one server name.")
+    return names
+
+
+def _confirm_stdio_server(server: ConfiguredServer) -> bool:
+    console.print(f"Configured stdio MCP server {server.name!r} from {server.source_path}")
+    if server.env_names:
+        env = " ".join(f"{name}=<redacted>" for name in server.env_names)
+        console.print(f"Env: {env}")
+    console.print("Command:")
+    console.print(f"  {' '.join(server.command or [])}")
+    return typer.confirm("Execute and scan?", default=False)
