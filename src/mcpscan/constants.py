@@ -1,4 +1,13 @@
 SCANNER_NAME = "mcpscan"
+REPORT_VERSION = "2.0"
+CHECKS_VERSION = "1"
+NOT_CHECKED = [
+    "Server source code is not analyzed",
+    "Runtime behavior is not observed",
+    "Dependencies/supply chain are not audited",
+    "Drift requires --baseline rescans",
+    "Registry squatting coverage limited to a curated seed list",
+]
 EXIT_OK = 0
 EXIT_FINDINGS = 1
 EXIT_USAGE = 2

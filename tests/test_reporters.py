@@ -1,4 +1,7 @@
 import json
+from importlib.resources import files
+
+from jsonschema import validate
 
 from mcpscan.models import (
     ConfigScanResult,
@@ -16,15 +19,24 @@ from tests.helpers import malicious_context
 def test_json_contains_payload_stored_false() -> None:
     payload = json.loads(render_json(scan_context(malicious_context())))
 
+    validate(payload, json.loads(files("mcpscan.data").joinpath("report.schema.json").read_text()))
+    assert payload["report_version"] == "2.0"
+    assert payload["verdict_summary"]["recommendation"] == "do_not_connect"
     assert payload["findings"]
     assert all(finding["payload_stored"] is False for finding in payload["findings"])
     assert all(finding["capability"] for finding in payload["findings"])
     assert all(finding["owasp_mcp"].startswith("MCP") for finding in payload["findings"])
+    assert payload["not_checked"]
 
 
 def test_markdown_includes_remediation() -> None:
     report = render_markdown(scan_context(malicious_context()))
 
+    assert "## Identity & Provenance" in report
+    assert "## Verdict Summary" in report
+    assert "## Findings" in report
+    assert "## What We Did Not Check" in report
+    assert "## Reproduce" in report
     assert "Remediation:" in report
     assert "Capability:" in report
     assert "OWASP MCP:" in report
@@ -64,6 +76,7 @@ def config_result() -> ConfigScanResult:
 def test_config_json_report_shape_and_payload_contract() -> None:
     payload = json.loads(render_config_json(config_result()))
 
+    assert payload["report_version"] == "2.0"
     assert payload["config"]["servers_scanned"] == 1
     findings = payload["server_results"][0]["findings"]
     assert findings

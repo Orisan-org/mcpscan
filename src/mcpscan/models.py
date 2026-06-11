@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -144,6 +145,14 @@ class PurposeProfile(BaseModel):
     expected_capabilities: list[Capability] = Field(default_factory=list)
 
 
+class ScanMetadata(BaseModel):
+    timestamp_utc: str = Field(
+        default_factory=lambda: datetime.now(UTC).replace(microsecond=0).isoformat()
+    )
+    timeout_seconds: float | None = None
+    reproduce_command: str | None = None
+
+
 class ScanResult(BaseModel):
     target: ScanTarget
     server: ServerInfo
@@ -152,6 +161,7 @@ class ScanResult(BaseModel):
     grade: str
     surface: SurfaceSnapshot
     purpose_profile: PurposeProfile
+    scan: ScanMetadata = Field(default_factory=ScanMetadata)
     warnings: list[str] = Field(default_factory=list)
 
 

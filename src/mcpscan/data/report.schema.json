@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Orisan-org/mcpscan/report.schema.json",
+  "title": "mcpscan report",
+  "type": "object",
+  "required": [
+    "report_version",
+    "scan",
+    "server",
+    "purpose_profile",
+    "verdict_summary",
+    "surface",
+    "findings",
+    "not_checked"
+  ],
+  "properties": {
+    "report_version": { "const": "2.0" },
+    "scan": {
+      "type": "object",
+      "required": [
+        "mcpscan_version",
+        "checks_version",
+        "timestamp_utc",
+        "target",
+        "transport",
+        "timeout_seconds",
+        "reproduce_command"
+      ],
+      "properties": {
+        "mcpscan_version": { "type": "string" },
+        "checks_version": { "type": "string" },
+        "timestamp_utc": { "type": "string" },
+        "target": { "type": "string" },
+        "transport": { "type": "string" },
+        "timeout_seconds": { "type": ["number", "null"] },
+        "reproduce_command": { "type": ["string", "null"] }
+      }
+    },
+    "server": {
+      "type": "object",
+      "required": ["name", "version", "transport", "source"],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] },
+        "transport": { "type": "string" },
+        "source": { "type": ["string", "null"] }
+      }
+    },
+    "purpose_profile": {
+      "type": "object",
+      "required": ["category", "category_source", "declared_text", "expected_capabilities"]
+    },
+    "verdict_summary": {
+      "type": "object",
+      "required": [
+        "recommendation",
+        "grade",
+        "counts_by_adjusted_severity",
+        "top_findings"
+      ],
+      "properties": {
+        "recommendation": {
+          "enum": ["proceed", "proceed_with_conditions", "do_not_connect"]
+        },
+        "grade": { "type": "string" },
+        "counts_by_adjusted_severity": { "type": "object" },
+        "top_findings": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "surface": {
+      "type": "object",
+      "required": ["surface_version", "tools", "resources", "prompts"]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "severity",
+          "original_severity",
+          "adjusted_severity",
+          "contextual_verdict",
+          "verdict_reasoning",
+          "capability",
+          "owasp_mcp",
+          "target",
+          "evidence",
+          "remediation",
+          "reference",
+          "payload_stored"
+        ],
+        "properties": {
+          "payload_stored": { "const": false }
+        }
+      }
+    },
+    "not_checked": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

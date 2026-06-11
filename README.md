@@ -196,7 +196,10 @@ Each finding includes:
 
 - stable check ID
 - title
-- severity
+- original severity
+- adjusted severity
+- contextual verdict
+- verdict reasoning
 - capability
 - OWASP MCP Top 10 ID
 - target
@@ -212,6 +215,10 @@ Example:
   "id": "MCP-030",
   "title": "Command or code injection surface",
   "severity": "high",
+  "original_severity": "high",
+  "adjusted_severity": "high",
+  "contextual_verdict": "unadjudicated",
+  "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication.",
   "capability": "shell_exec",
   "owasp_mcp": "MCP05",
   "target": "run_command",

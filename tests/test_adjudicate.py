@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from mcpscan.adjudicate import adjudicate_findings
 from mcpscan.capabilities import Capability
 from mcpscan.models import (
@@ -104,12 +106,14 @@ def test_no_purpose_info_keeps_severities_unadjudicated() -> None:
 
 
 def test_same_scan_emits_identical_json() -> None:
-    first = render_json(
-        scan_context(malicious_context(), purpose_category=PurposeCategory.FILESYSTEM)
+    first = json.loads(
+        render_json(scan_context(malicious_context(), purpose_category=PurposeCategory.FILESYSTEM))
     )
-    second = render_json(
-        scan_context(malicious_context(), purpose_category=PurposeCategory.FILESYSTEM)
+    second = json.loads(
+        render_json(scan_context(malicious_context(), purpose_category=PurposeCategory.FILESYSTEM))
     )
+    first["scan"]["timestamp_utc"] = "<timestamp>"
+    second["scan"]["timestamp_utc"] = "<timestamp>"
 
     assert first == second
 

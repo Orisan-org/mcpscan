@@ -101,7 +101,7 @@ if not findings and "server_results" in payload:
         for server in payload.get("server_results", [])
         for finding in server.get("findings", [])
     ]
-print("summary_grade", payload.get("summary", {}).get("grade"))
+print("report_grade", payload.get("verdict_summary", {}).get("grade"))
 print("summary_worst_grade", payload.get("summary", {}).get("worst_grade"))
 print("finding_count", len(findings))
 print("payload_stored_false", all(f.get("payload_stored") is False for f in findings))

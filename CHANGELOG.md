@@ -20,6 +20,7 @@
 - Increased the CLI default connection timeout from 20 seconds to 90 seconds for cold-start stdio servers.
 - Expanded `mcpscan list-checks`, JSON reports, and Markdown reports with capability and OWASP MCP metadata.
 - Changed MCP-002 from deferred to active when a baseline report is supplied.
+- Changed single-target JSON reports to report version `2.0` with scan metadata, verdict summary, not-checked statements, and schema validation.
 
 ### Fixed
 
