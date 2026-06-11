@@ -72,8 +72,12 @@ def scan(
         ),
     ] = Severity.HIGH,
     timeout: Annotated[
-        float, typer.Option("--timeout", help="Connection timeout in seconds.")
-    ] = 20.0,
+        float,
+        typer.Option(
+            "--timeout",
+            help="Connection timeout in seconds. Cold-start npx/uvx servers may need 30+ seconds.",
+        ),
+    ] = 90.0,
     fail_on_warnings: Annotated[
         bool, typer.Option("--fail-on-warnings", help="Exit non-zero if warnings are present.")
     ] = False,

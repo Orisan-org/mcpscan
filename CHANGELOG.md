@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added the approved build plan to `docs/BUILD_PLAN.md`.
+- Added stdio integration tests for benign, malicious, slow-start, timeout, and malformed subprocess behavior.
+- Added a network-marked stdio test for the reference filesystem server.
+
+### Changed
+
+- Increased the CLI default connection timeout from 20 seconds to 90 seconds for cold-start stdio servers.
+
+### Fixed
+
+- Applied stdio `--timeout` to the actual MCP handshake/enumeration path.
+- Unwrapped nested `ExceptionGroup`/TaskGroup failures so user-facing enumeration errors show the real innermost cause.
+
 ## v0.1.0-alpha.2 - 2026-06-06
 
 Validation-driven alpha patch.

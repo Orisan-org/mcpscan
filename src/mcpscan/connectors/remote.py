@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import builtins
 from typing import Any
 
 from mcpscan.connectors.base import Connector
-from mcpscan.errors import EnumerationError
+from mcpscan.errors import EnumerationError, unwrap_exception_group
 from mcpscan.models import ScanContext, ServerInfo, Transport
 from mcpscan.normalizer import normalize_prompts, normalize_resources, normalize_tools
 from mcpscan.utils.redact import redact_url_credentials
@@ -51,7 +50,8 @@ class RemoteConnector(Connector):
         except EnumerationError:
             raise
         except Exception as exc:
-            message = _safe_remote_error_message(exc, self.target.url)
+            root = unwrap_exception_group(exc)
+            message = _safe_remote_error_message(root, self.target.url)
             if "401" in message or "403" in message:
                 raise EnumerationError(
                     f"Remote MCP server rejected enumeration: {message}"
@@ -139,11 +139,6 @@ def _safe_remote_error_message(exc: Exception, url: str) -> str:
 
 
 def _flatten_error_messages(exc: BaseException) -> list[str]:
-    if isinstance(exc, builtins.BaseExceptionGroup):
-        messages: list[str] = []
-        for child in exc.exceptions:
-            messages.extend(_flatten_error_messages(child))
-        return messages
     message = str(exc).strip()
     if not message:
         message = exc.__class__.__name__

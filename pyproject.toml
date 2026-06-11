@@ -59,5 +59,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["E501", "UP042", "SIM117"]
 
 [tool.pytest.ini_options]
+addopts = "-m 'not network'"
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+  "network: tests that require external package downloads or network access",
+]
