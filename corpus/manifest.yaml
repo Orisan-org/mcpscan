@@ -1,0 +1,30 @@
+entries:
+  - id: reference_filesystem
+    name: Model Context Protocol reference filesystem server
+    repo_url: https://github.com/modelcontextprotocol/servers.git
+    git_sha: 275175cda17ca9c49920ceed2bcf27e12e59f8b2
+    stratum: reference
+    category: filesystem
+    transport: stdio
+    install:
+      - npm ci
+      - npm run build --workspace @modelcontextprotocol/server-filesystem
+    launch_command: node {repo_dir}/src/filesystem/dist/index.js {work_dir}
+    env: {}
+    dummy_credentials: false
+    notes: Official/reference-style filesystem MCP server. Enumerates without credentials.
+  - id: reference_memory
+    name: Model Context Protocol reference memory server
+    repo_url: https://github.com/modelcontextprotocol/servers.git
+    git_sha: 275175cda17ca9c49920ceed2bcf27e12e59f8b2
+    stratum: reference
+    category: memory_store
+    transport: stdio
+    install:
+      - npm ci
+      - npm run build --workspace @modelcontextprotocol/server-memory
+    launch_command: node {repo_dir}/src/memory/dist/index.js
+    env:
+      MEMORY_FILE_PATH: "{work_dir}/memory.jsonl"
+    dummy_credentials: false
+    notes: Official/reference-style memory MCP server. Enumerates without credentials.

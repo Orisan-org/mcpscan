@@ -2,6 +2,8 @@
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+/.corpus-cache/
+/corpus/results/
 *.egg-info/
 dist/
 build/
