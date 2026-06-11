@@ -133,3 +133,64 @@ memory_store:
 unknown:
   keywords: []
   expected_capabilities: []
+
+capability_keywords:
+  file_read:
+    - read file
+    - file path
+    - directory
+    - filesystem
+  file_write:
+    - write file
+    - edit file
+    - save file
+    - delete file
+  network_egress:
+    - http
+    - url
+    - uri
+    - fetch
+    - request
+    - api
+    - webhook
+  shell_exec:
+    - shell
+    - command
+    - terminal
+    - bash
+    - powershell
+  code_eval:
+    - eval
+    - execute code
+    - run script
+    - interpreter
+    - python
+  credential_access:
+    - token
+    - secret
+    - api key
+    - credential
+  data_exposure:
+    - data
+    - pii
+    - customer
+    - database
+    - records
+  prompt_anomaly:
+    - prompt
+    - instruction
+    - system message
+  transport_security:
+    - tls
+    - auth
+    - authentication
+    - https
+  identity_spoof:
+    - package
+    - identity
+    - name
+  surface_drift:
+    - drift
+    - baseline
+    - changed tool
+  other: []

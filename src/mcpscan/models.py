@@ -47,6 +47,13 @@ class PurposeSource(str, Enum):
     UNKNOWN = "unknown"
 
 
+class ContextualVerdict(str, Enum):
+    EXPECTED_BY_PURPOSE = "expected_by_purpose"
+    UNEXPECTED = "unexpected"
+    UNDECLARED = "undeclared"
+    UNADJUDICATED = "unadjudicated"
+
+
 class ScanTarget(BaseModel):
     raw: str | None = None
     kind: TargetKind
@@ -103,6 +110,10 @@ class Finding(BaseModel):
     id: str
     title: str
     severity: Severity
+    original_severity: Severity | None = None
+    adjusted_severity: Severity | None = None
+    contextual_verdict: ContextualVerdict = ContextualVerdict.UNADJUDICATED
+    verdict_reasoning: str = ""
     capability: Capability
     owasp_mcp: str
     target: str

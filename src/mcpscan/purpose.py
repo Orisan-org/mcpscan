@@ -40,10 +40,35 @@ def load_purpose_taxonomy() -> dict[PurposeCategory, dict[str, Any]]:
             "expected_capabilities": [Capability(item) for item in expected],
         }
 
-    extra = set(payload) - {category.value for category in PurposeCategory}
+    extra = (
+        set(payload) - {category.value for category in PurposeCategory} - {"capability_keywords"}
+    )
     if extra:
         raise ValueError(f"purpose taxonomy has unknown categories: {sorted(extra)}")
     return taxonomy
+
+
+@lru_cache(maxsize=1)
+def load_capability_keywords() -> dict[Capability, list[str]]:
+    path = files("mcpscan.data").joinpath("purpose_categories.yaml")
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    raw_keywords = payload.get("capability_keywords") if isinstance(payload, dict) else None
+    if not isinstance(raw_keywords, dict):
+        raise ValueError("purpose taxonomy missing capability_keywords")
+
+    keywords: dict[Capability, list[str]] = {}
+    for capability in Capability:
+        raw_values = raw_keywords.get(capability.value, [])
+        if not isinstance(raw_values, list) or not all(
+            isinstance(item, str) for item in raw_values
+        ):
+            raise ValueError(f"capability keywords must be strings: {capability.value}")
+        keywords[capability] = [item.lower() for item in raw_values]
+
+    extra = set(raw_keywords) - {capability.value for capability in Capability}
+    if extra:
+        raise ValueError(f"purpose taxonomy has unknown capabilities: {sorted(extra)}")
+    return keywords
 
 
 def build_purpose_profile(

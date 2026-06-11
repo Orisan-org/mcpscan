@@ -1,108 +1,140 @@
 {
   "findings": [
     {
+      "adjusted_severity": "critical",
       "capability": "credential_access",
+      "contextual_verdict": "unadjudicated",
       "evidence": "Potential GitHub token found in tool metadata for 'send_report' at input_schema.properties.api_key.default and was redacted (ghp_...3456).",
       "id": "MCP-020",
       "metadata": {},
+      "original_severity": "critical",
       "owasp_mcp": "MCP01",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Credential exposure",
       "remediation": "Remove secrets from MCP metadata and pass credentials through secure runtime configuration.",
       "severity": "critical",
       "target": "send_report",
-      "title": "Secret exposure in metadata"
+      "title": "Secret exposure in metadata",
+      "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication."
     },
     {
+      "adjusted_severity": "high",
       "capability": "prompt_anomaly",
+      "contextual_verdict": "unadjudicated",
       "evidence": "Description for tool 'search' contains instruction-like phrase 'ignore previous instructions'.",
       "id": "MCP-001",
       "metadata": {},
+      "original_severity": "high",
       "owasp_mcp": "MCP03",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Tool poisoning and rug pull attacks",
       "remediation": "Remove embedded instructions from MCP metadata and treat descriptions as untrusted display text.",
       "severity": "high",
       "target": "search",
-      "title": "Tool description prompt injection"
+      "title": "Tool description prompt injection",
+      "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication."
     },
     {
+      "adjusted_severity": "high",
       "capability": "shell_exec",
+      "contextual_verdict": "unadjudicated",
       "evidence": "Tool 'run_command' appears to expose shell execution based on name, description, or schema.",
       "id": "MCP-010",
       "metadata": {},
+      "original_severity": "high",
       "owasp_mcp": "MCP02",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Excessive permissions",
       "remediation": "Restrict dangerous tools, require explicit approval, and scope parameters as narrowly as possible.",
       "severity": "high",
       "target": "run_command",
-      "title": "Dangerous capability exposure"
+      "title": "Dangerous capability exposure",
+      "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication."
     },
     {
+      "adjusted_severity": "high",
       "capability": "credential_access",
+      "contextual_verdict": "unadjudicated",
       "evidence": "Tool 'send_report' appears to expose credential access based on name, description, or schema.",
       "id": "MCP-010",
       "metadata": {},
+      "original_severity": "high",
       "owasp_mcp": "MCP02",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Excessive permissions",
       "remediation": "Restrict dangerous tools, require explicit approval, and scope parameters as narrowly as possible.",
       "severity": "high",
       "target": "send_report",
-      "title": "Dangerous capability exposure"
+      "title": "Dangerous capability exposure",
+      "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication."
     },
     {
+      "adjusted_severity": "high",
       "capability": "data_exposure",
+      "contextual_verdict": "unadjudicated",
       "evidence": "Resource 'file://.env/' appears to expose sensitive data or file signal '.env'.",
       "id": "MCP-021",
       "metadata": {},
+      "original_severity": "high",
       "owasp_mcp": "MCP10",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Sensitive data exposure",
       "remediation": "Remove sensitive resources from MCP exposure or gate them behind explicit authorization.",
       "severity": "high",
       "target": "env_file",
-      "title": "Sensitive data or file exposure"
+      "title": "Sensitive data or file exposure",
+      "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication."
     },
     {
+      "adjusted_severity": "high",
       "capability": "data_exposure",
+      "contextual_verdict": "unadjudicated",
       "evidence": "Tool 'search' appears to expose sensitive data or file signal '.env'.",
       "id": "MCP-021",
       "metadata": {},
+      "original_severity": "high",
       "owasp_mcp": "MCP10",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Sensitive data exposure",
       "remediation": "Restrict access to sensitive files and avoid exposing PII or secrets through MCP tools.",
       "severity": "high",
       "target": "search",
-      "title": "Sensitive data or file exposure"
+      "title": "Sensitive data or file exposure",
+      "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication."
     },
     {
+      "adjusted_severity": "high",
       "capability": "shell_exec",
+      "contextual_verdict": "unadjudicated",
       "evidence": "Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands or code.",
       "id": "MCP-030",
       "metadata": {},
+      "original_severity": "high",
       "owasp_mcp": "MCP05",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Tool invocation injection",
       "remediation": "Constrain executable inputs with enums, patterns, length limits, allowlists, and server-side validation.",
       "severity": "high",
       "target": "run_command",
-      "title": "Command or code injection surface"
+      "title": "Command or code injection surface",
+      "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication."
     },
     {
+      "adjusted_severity": "medium",
       "capability": "identity_spoof",
+      "contextual_verdict": "unadjudicated",
       "evidence": "Name 'githab' is visually similar to known MCP server name 'github'.",
       "id": "MCP-050",
       "metadata": {},
+      "original_severity": "medium",
       "owasp_mcp": "MCP09",
       "payload_stored": false,
       "reference": "OWASP MCP Top 10: Identity and package spoofing",
       "remediation": "Verify package provenance, repository ownership, and installation source before trusting this server.",
       "severity": "medium",
       "target": "githab",
-      "title": "Static known-name lookalike check"
+      "title": "Static known-name lookalike check",
+      "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication."
     }
   ],
   "purpose_profile": {

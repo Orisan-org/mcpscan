@@ -13,6 +13,7 @@
 - Added MCP-002 tool definition drift detection with `mcpscan scan --baseline`.
 - Added `scan-config --baseline-dir` for per-server baseline files.
 - Added deterministic purpose profiles and a documented static purpose taxonomy.
+- Added deterministic contextual verdicts with adjusted severity.
 
 ### Changed
 

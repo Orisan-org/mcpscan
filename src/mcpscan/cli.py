@@ -18,6 +18,7 @@ from mcpscan.reporters.json_reporter import render_config_json, render_json
 from mcpscan.reporters.markdown import render_config_markdown, render_markdown
 from mcpscan.reporters.terminal import render_config_terminal, render_terminal
 from mcpscan.scanner import scan_target
+from mcpscan.scoring import effective_severity
 from mcpscan.target import resolve_target
 from mcpscan.utils.severity import severity_gte
 
@@ -125,7 +126,10 @@ def scan(
         else:
             typer.echo(rendered, nl=False)
         exit_code = EXIT_OK
-        if any(severity_gte(finding.severity, severity_threshold) for finding in result.findings):
+        if any(
+            severity_gte(effective_severity(finding), severity_threshold)
+            for finding in result.findings
+        ):
             exit_code = EXIT_FINDINGS
         if fail_on_warnings and result.warnings and exit_code == EXIT_OK:
             exit_code = EXIT_FINDINGS
@@ -222,7 +226,7 @@ def scan_config_command(
         if not result.server_results and result.failures:
             raise typer.Exit(EXIT_ENUMERATION)
         if any(
-            severity_gte(finding.severity, severity_threshold)
+            severity_gte(effective_severity(finding), severity_threshold)
             for server in result.server_results
             for finding in server.result.findings
         ):

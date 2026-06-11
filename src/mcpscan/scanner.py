@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from mcpscan.adjudicate import adjudicate_findings
 from mcpscan.checks.registry import active_checks
-from mcpscan.engine import run_checks
+from mcpscan.engine import run_checks, sort_findings
 from mcpscan.enumerator import enumerate_target
 from mcpscan.models import (
     ExposedPrompt,
@@ -49,6 +50,7 @@ def scan_context(
     findings = run_checks(ctx, active_checks())
     if baseline_path:
         findings.extend(compare_tool_surface(surface, load_baseline_surface(baseline_path)))
+    findings = sort_findings(adjudicate_findings(findings, purpose_profile))
     return ScanResult(
         target=ctx.target,
         server=ctx.server,

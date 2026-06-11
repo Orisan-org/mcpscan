@@ -15,3 +15,15 @@ def severity_gte(actual: Severity, threshold: Severity) -> bool:
 
 def severity_sort_value(severity: Severity) -> int:
     return -ORDER[severity]
+
+
+def increase_severity(severity: Severity) -> Severity:
+    if severity == Severity.INFO:
+        return Severity.LOW
+    if severity == Severity.LOW:
+        return Severity.MEDIUM
+    if severity == Severity.MEDIUM:
+        return Severity.HIGH
+    if severity == Severity.HIGH:
+        return Severity.CRITICAL
+    return Severity.CRITICAL
