@@ -137,47 +137,34 @@
       "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication."
     }
   ],
+  "not_checked": [
+    "Server source code is not analyzed",
+    "Runtime behavior is not observed",
+    "Dependencies/supply chain are not audited",
+    "Drift requires --baseline rescans",
+    "Registry squatting coverage limited to a curated seed list"
+  ],
   "purpose_profile": {
     "category": "unknown",
     "category_source": "unknown",
     "declared_text": "githab",
     "expected_capabilities": []
   },
-  "scanner": {
-    "name": "mcpscan",
-    "version": "0.1.0"
+  "report_version": "2.0",
+  "scan": {
+    "checks_version": "1",
+    "mcpscan_version": "0.1.0",
+    "reproduce_command": "mcpscan scan --command '.venv/bin/python tests/fixtures/malicious_server.py' --timeout 90.0",
+    "target": ".venv/bin/python tests/fixtures/malicious_server.py",
+    "timeout_seconds": 90.0,
+    "timestamp_utc": "2026-06-11T18:01:53+00:00",
+    "transport": "stdio"
   },
   "server": {
-    "capabilities": {
-      "completions": null,
-      "experimental": {},
-      "logging": null,
-      "prompts": {
-        "listChanged": false
-      },
-      "resources": {
-        "listChanged": false,
-        "subscribe": false
-      },
-      "tasks": null,
-      "tools": {
-        "listChanged": false
-      }
-    },
-    "instructions": null,
     "name": "githab",
-    "protocol_version": "2025-11-25",
+    "source": null,
+    "transport": "stdio",
     "version": "1.27.2"
-  },
-  "summary": {
-    "counts": {
-      "critical": 1,
-      "high": 6,
-      "info": 0,
-      "low": 0,
-      "medium": 1
-    },
-    "grade": "F"
   },
   "surface": {
     "prompts": [],
@@ -207,10 +194,21 @@
       }
     ]
   },
-  "target": {
-    "kind": "command",
-    "transport": "stdio",
-    "url": null
+  "verdict_summary": {
+    "counts_by_adjusted_severity": {
+      "critical": 1,
+      "high": 6,
+      "info": 0,
+      "low": 0,
+      "medium": 1
+    },
+    "grade": "F",
+    "recommendation": "do_not_connect",
+    "top_findings": [
+      "CRITICAL MCP-020 on send_report: Potential GitHub token found in tool metadata for 'send_report' at input_schema.properties.api_key.default and was redacted (ghp_...3456).",
+      "HIGH MCP-001 on search: Description for tool 'search' contains instruction-like phrase 'ignore previous instructions'.",
+      "HIGH MCP-010 on run_command: Tool 'run_command' appears to expose shell execution based on name, description, or schema."
+    ]
   },
   "warnings": []
 }

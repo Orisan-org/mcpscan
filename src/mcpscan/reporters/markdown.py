@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from mcpscan import __version__
+from mcpscan.constants import CHECKS_VERSION, NOT_CHECKED, SCANNER_NAME
 from mcpscan.models import ConfigScanResult, ScanResult
+from mcpscan.reporters.json_reporter import recommendation_for
 from mcpscan.scoring import effective_severity
 
 
@@ -10,38 +13,75 @@ def render_markdown(result: ScanResult) -> str:
     lines = [
         "# mcpscan report",
         "",
-        "## Summary",
+        "## Identity & Provenance",
         f"- Target: {target}",
         f"- Server: {server}",
+        f"- Server version: {result.server.version or 'unknown'}",
         f"- Transport: {result.target.transport.value}",
+        f"- Scanner: {SCANNER_NAME} {__version__}",
+        f"- Checks version: {CHECKS_VERSION}",
+        f"- Timestamp UTC: {result.scan.timestamp_utc}",
+        f"- Reproduce command: `{result.scan.reproduce_command or 'unavailable'}`",
+        "- Payload stored: false for all findings",
+        "",
+        "## Verdict Summary",
+        f"- Recommendation: {recommendation_for(result)}",
+        f"- Grade: {result.grade}",
         f"- Purpose: {result.purpose_profile.category.value}",
         f"- Purpose source: {result.purpose_profile.category_source.value}",
         "- Expected capabilities: "
         + _capability_list(result.purpose_profile.expected_capabilities),
-        f"- Grade: {result.grade}",
         f"- Critical: {result.counts.get('critical', 0)}",
         f"- High: {result.counts.get('high', 0)}",
         f"- Medium: {result.counts.get('medium', 0)}",
         f"- Low: {result.counts.get('low', 0)}",
+        f"- Info: {result.counts.get('info', 0)}",
         "",
-        "## Findings",
+        "Top findings:",
     ]
-    if not result.findings:
-        lines.extend(["", "No findings."])
-    for finding in result.findings:
+    if result.findings:
+        lines.extend(f"- {_top_finding(finding)}" for finding in result.findings[:3])
+    else:
+        lines.append("- No findings.")
+    lines.extend(
+        [
+            "",
+            "## Findings",
+        ]
+    )
+    if result.findings:
         lines.extend(
             [
                 "",
+                "| Adjusted severity | Verdict | Capability | OWASP | Check | Target | Evidence |",
+                "| --- | --- | --- | --- | --- | --- | --- |",
+            ]
+        )
+        for finding in result.findings:
+            lines.append(
+                "| {severity} | {verdict} | {capability} | {owasp} | {check} | {target} | {evidence} |".format(
+                    severity=effective_severity(finding).value,
+                    verdict=finding.contextual_verdict.value,
+                    capability=finding.capability.value,
+                    owasp=finding.owasp_mcp,
+                    check=finding.id,
+                    target=finding.target,
+                    evidence=finding.evidence.replace("|", "\\|"),
+                )
+            )
+    else:
+        lines.extend(["", "No findings."])
+    lines.append("")
+    for finding in result.findings:
+        lines.extend(
+            [
                 f"### {finding.id} - {finding.title}",
-                f"Severity: {_severity_label(finding)}",
+                f"Adjusted severity: {_severity_label(finding)}",
                 f"Verdict: {finding.contextual_verdict.value}",
                 f"Capability: {finding.capability.value}",
                 f"OWASP MCP: {finding.owasp_mcp}",
                 f"Target: {finding.target}",
                 f"Payload stored: {str(finding.payload_stored).lower()}",
-                "",
-                "Verdict reasoning:",
-                finding.verdict_reasoning,
                 "",
                 "Evidence:",
                 finding.evidence,
@@ -49,10 +89,23 @@ def render_markdown(result: ScanResult) -> str:
                 "Remediation:",
                 finding.remediation,
                 "",
+                "Verdict reasoning:",
+                finding.verdict_reasoning,
+                "",
                 "Reference:",
                 finding.reference,
+                "",
             ]
         )
+    lines.extend(
+        [
+            "## What We Did Not Check",
+            *[f"- {item}" for item in NOT_CHECKED],
+            "",
+            "## Reproduce",
+            f"`{result.scan.reproduce_command or 'unavailable'}`",
+        ]
+    )
     if result.warnings:
         lines.extend(["", "## Warnings"])
         lines.extend(f"- {warning}" for warning in result.warnings)
@@ -149,3 +202,10 @@ def _severity_label(finding) -> str:
     if adjusted == finding.severity:
         return adjusted.value.title()
     return f"{adjusted.value.title()} (original: {finding.severity.value.title()})"
+
+
+def _top_finding(finding) -> str:
+    return (
+        f"{effective_severity(finding).value.upper()} {finding.id} on "
+        f"{finding.target}: {finding.evidence}"
+    )

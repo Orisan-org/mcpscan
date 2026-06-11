@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ from mcpscan.models import (
     ExposedTool,
     PurposeCategory,
     ScanContext,
+    ScanMetadata,
     ScanResult,
     ScanTarget,
 )
@@ -34,6 +36,7 @@ async def scan_target(
         baseline_path=baseline_path,
         purpose_category=purpose_category,
         purpose_text=purpose_text,
+        timeout_seconds=timeout_seconds,
     )
 
 
@@ -42,6 +45,7 @@ def scan_context(
     baseline_path: Path | None = None,
     purpose_category: PurposeCategory | None = None,
     purpose_text: str | None = None,
+    timeout_seconds: float | None = None,
 ) -> ScanResult:
     surface = build_surface(ctx)
     purpose_profile = build_purpose_profile(
@@ -59,8 +63,24 @@ def scan_context(
         grade=grade_for(findings),
         surface=surface,
         purpose_profile=purpose_profile,
+        scan=ScanMetadata(
+            timeout_seconds=timeout_seconds,
+            reproduce_command=_reproduce_command(ctx.target, timeout_seconds),
+        ),
         warnings=ctx.warnings,
     )
+
+
+def _reproduce_command(target: ScanTarget, timeout_seconds: float | None) -> str:
+    pieces = ["mcpscan", "scan"]
+    if target.command:
+        pieces.extend(["--command", shlex.join(target.command)])
+    elif target.url:
+        pieces.append(target.url)
+        pieces.extend(["--transport", target.transport.value])
+    if timeout_seconds is not None:
+        pieces.extend(["--timeout", str(timeout_seconds)])
+    return shlex.join(pieces)
 
 
 def normalize_tools(values: Any) -> list[ExposedTool]:
