@@ -61,17 +61,19 @@ The malicious fixture intentionally returns findings, so these commands exit `1`
 
 ## What mcpscan Checks
 
-| ID | Title | Severity | Status |
-| --- | --- | --- | --- |
-| MCP-001 | Tool description prompt injection | high | active |
-| MCP-002 | Tool definition drift | high | deferred |
-| MCP-010 | Dangerous capability exposure | high | active |
-| MCP-020 | Secret exposure in metadata | critical | active |
-| MCP-021 | Sensitive data or file exposure | high | active |
-| MCP-030 | Command or code injection surface | high | active |
-| MCP-040 | Unauthenticated remote server | high | active |
-| MCP-041 | Missing TLS | high | active |
-| MCP-050 | Static known-name lookalike check using a curated seed list | medium | active |
+| ID | Title | Severity | Capability | OWASP MCP | Status |
+| --- | --- | --- | --- | --- | --- |
+| MCP-001 | Tool description prompt injection | high | prompt_anomaly | MCP03 | active |
+| MCP-002 | Tool definition drift | high | surface_drift | MCP03 | deferred |
+| MCP-010 | Dangerous capability exposure | high | per finding | MCP02 | active |
+| MCP-020 | Secret exposure in metadata | critical | credential_access | MCP01 | active |
+| MCP-021 | Sensitive data or file exposure | high | data_exposure | MCP10 | active |
+| MCP-030 | Command or code injection surface | high | shell_exec/code_eval | MCP05 | active |
+| MCP-040 | Unauthenticated remote server | high | transport_security | MCP07 | active |
+| MCP-041 | Missing TLS | high | transport_security | MCP07 | active |
+| MCP-050 | Static known-name lookalike check using a curated seed list | medium | identity_spoof | MCP09 | active |
+
+Current coverage maps to OWASP MCP classes MCP01, MCP02, MCP03, MCP05, MCP07, MCP09, and MCP10. MCP04 supply chain analysis, MCP06 intent/flow issues, and MCP08 audit/telemetry gaps are out of scope for this alpha.
 
 MCP-002 baseline drift is deferred. MCP-050 is an offline heuristic that compares exposed server/tool names against a curated static seed list of common MCP server names. It does not monitor package registries and should not be treated as exhaustive ecosystem coverage.
 
@@ -82,6 +84,8 @@ Each finding includes:
 - stable check ID
 - title
 - severity
+- capability
+- OWASP MCP Top 10 ID
 - target
 - redacted evidence
 - remediation
@@ -95,6 +99,8 @@ Example:
   "id": "MCP-030",
   "title": "Command or code injection surface",
   "severity": "high",
+  "capability": "shell_exec",
+  "owasp_mcp": "MCP05",
   "target": "run_command",
   "evidence": "Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands or code.",
   "remediation": "Constrain executable inputs with enums, patterns, length limits, allowlists, and server-side validation.",

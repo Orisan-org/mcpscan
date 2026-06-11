@@ -1,3 +1,4 @@
+from mcpscan.capabilities import Capability
 from mcpscan.engine import sort_findings
 from mcpscan.models import Finding, Severity
 
@@ -7,6 +8,8 @@ def _finding(id_: str, severity: Severity, target: str) -> Finding:
         id=id_,
         title="title",
         severity=severity,
+        capability=Capability.OTHER,
+        owasp_mcp="MCP00",
         target=target,
         evidence="evidence",
         remediation="remediation",

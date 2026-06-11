@@ -12,12 +12,16 @@ def test_json_contains_payload_stored_false() -> None:
 
     assert payload["findings"]
     assert all(finding["payload_stored"] is False for finding in payload["findings"])
+    assert all(finding["capability"] for finding in payload["findings"])
+    assert all(finding["owasp_mcp"].startswith("MCP") for finding in payload["findings"])
 
 
 def test_markdown_includes_remediation() -> None:
     report = render_markdown(scan_context(malicious_context()))
 
     assert "Remediation:" in report
+    assert "Capability:" in report
+    assert "OWASP MCP:" in report
 
 
 def test_terminal_does_not_crash() -> None:

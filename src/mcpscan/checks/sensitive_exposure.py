@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from mcpscan.capabilities import Capability
 from mcpscan.checks.base import Check
 from mcpscan.models import Finding, ScanContext, Severity
 from mcpscan.utils.text import iter_strings
@@ -25,7 +26,8 @@ class SensitiveDataExposureCheck(Check):
     id = "MCP-021"
     title = "Sensitive data or file exposure"
     severity = Severity.HIGH
-    reference = "OWASP MCP Top 10: Data exposure"
+    default_capability = Capability.DATA_EXPOSURE
+    owasp_mcp = "MCP10"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         findings: list[Finding] = []

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from mcpscan.capabilities import Capability, owasp_reference
 from mcpscan.checks.base import Check
 from mcpscan.checks.command_injection import CommandInjectionSurfaceCheck
 from mcpscan.checks.dangerous_capabilities import DangerousCapabilityExposureCheck
@@ -19,6 +20,8 @@ class CheckCatalogueEntry:
     title: str
     severity: Severity
     status: str
+    capability: Capability
+    owasp_mcp: str
     reference: str
 
 
@@ -39,7 +42,9 @@ DEFERRED_CHECKS = [
         title="Tool definition drift",
         severity=Severity.HIGH,
         status="deferred",
-        reference="OWASP MCP Top 10: Rug pull",
+        capability=Capability.SURFACE_DRIFT,
+        owasp_mcp="MCP03",
+        reference=owasp_reference("MCP03"),
     )
 ]
 
@@ -55,6 +60,8 @@ def check_catalogue() -> list[CheckCatalogueEntry]:
             title=check.title,
             severity=check.severity,
             status=check.status,
+            capability=check.default_capability,
+            owasp_mcp=check.owasp_mcp,
             reference=check.reference,
         )
         for check in PHASE1_CHECKS

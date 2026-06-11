@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
+from mcpscan.capabilities import Capability
 from mcpscan.checks.base import Check
 from mcpscan.models import Finding, ScanContext, Severity, TargetKind
 
@@ -12,7 +13,8 @@ class UnauthenticatedRemoteServerCheck(Check):
     id = "MCP-040"
     title = "Unauthenticated remote server"
     severity = Severity.HIGH
-    reference = "OWASP MCP Top 10: Auth and transport"
+    default_capability = Capability.TRANSPORT_SECURITY
+    owasp_mcp = "MCP07"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         if (
@@ -34,7 +36,8 @@ class MissingTLSCheck(Check):
     id = "MCP-041"
     title = "Missing TLS"
     severity = Severity.HIGH
-    reference = "OWASP MCP Top 10: Auth and transport"
+    default_capability = Capability.TRANSPORT_SECURITY
+    owasp_mcp = "MCP07"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         if ctx.target.kind != TargetKind.URL or not ctx.target.url:

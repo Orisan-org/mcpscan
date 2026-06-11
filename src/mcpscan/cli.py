@@ -43,9 +43,16 @@ def version() -> None:
 
 @app.command("list-checks")
 def list_checks() -> None:
-    table = Table("ID", "TITLE", "SEVERITY", "STATUS")
+    table = Table("ID", "TITLE", "SEVERITY", "CAPABILITY", "OWASP", "STATUS")
     for entry in check_catalogue():
-        table.add_row(entry.id, entry.title, entry.severity.value, entry.status)
+        table.add_row(
+            entry.id,
+            entry.title,
+            entry.severity.value,
+            entry.capability.value,
+            entry.owasp_mcp,
+            entry.status,
+        )
     console.print(table)
 
 

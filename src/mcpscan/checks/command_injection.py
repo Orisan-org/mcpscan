@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from mcpscan.capabilities import Capability
 from mcpscan.checks.base import Check
 from mcpscan.models import Finding, ScanContext, Severity
 
@@ -31,7 +32,8 @@ class CommandInjectionSurfaceCheck(Check):
     id = "MCP-030"
     title = "Command or code injection surface"
     severity = Severity.HIGH
-    reference = "OWASP MCP Top 10: Injection"
+    default_capability = Capability.SHELL_EXEC
+    owasp_mcp = "MCP05"
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         findings: list[Finding] = []
@@ -39,15 +41,17 @@ class CommandInjectionSurfaceCheck(Check):
             text = f"{tool.name} {tool.description or ''}".lower()
             for param_name, schema in _iter_properties(tool.input_schema):
                 param = param_name.lower()
-                sink_kind = _sink_kind(text, param)
-                if sink_kind is None:
+                sink = _sink(text, param)
+                if sink is None:
                     continue
+                sink_kind, capability = sink
                 if schema.get("type") != "string":
                     continue
                 severity = Severity.MEDIUM if _has_constraints(schema) else Severity.HIGH
                 findings.append(
                     self.finding(
                         severity=severity,
+                        capability=capability,
                         target=tool.name,
                         evidence=(
                             f"Tool {tool.name!r} accepts "
@@ -71,11 +75,11 @@ def _has_constraints(schema: dict[str, Any]) -> bool:
     return any(key in schema for key in CONSTRAINT_KEYS)
 
 
-def _sink_kind(text: str, param_name: str) -> str | None:
+def _sink(text: str, param_name: str) -> tuple[str, Capability] | None:
     if _has_sql_execution_semantics(text, param_name):
-        return "SQL or database queries"
+        return "SQL or database queries", Capability.CODE_EVAL
     if _has_command_or_code_execution_semantics(text, param_name):
-        return "commands or code"
+        return "commands or code", _command_or_code_capability(text, param_name)
     return None
 
 
@@ -84,6 +88,15 @@ def _has_command_or_code_execution_semantics(text: str, param_name: str) -> bool
         return False
     tokens = _tokens(text)
     return any(word in tokens for word in EXECUTION_WORDS)
+
+
+def _command_or_code_capability(text: str, param_name: str) -> Capability:
+    tokens = _tokens(text)
+    if param_name in {"code", "expression", "script"}:
+        return Capability.CODE_EVAL
+    if any(word in tokens for word in {"eval", "interpreter", "javascript", "python", "script"}):
+        return Capability.CODE_EVAL
+    return Capability.SHELL_EXEC
 
 
 def _has_sql_execution_semantics(text: str, param_name: str) -> bool:
