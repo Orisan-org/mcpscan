@@ -1,0 +1,5 @@
+entries:
+  - id: toy_alpha
+    stratum: reference
+  - id: toy_beta
+    stratum: risky

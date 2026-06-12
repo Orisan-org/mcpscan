@@ -1,0 +1,37 @@
+{
+  "findings": [
+    {
+      "id": "MCP-030",
+      "capability": "shell_exec",
+      "target": "run_command",
+      "severity": "high",
+      "contextual_verdict": "unexpected",
+      "payload_stored": false
+    },
+    {
+      "id": "MCP-010",
+      "capability": "file_read",
+      "target": "read_file",
+      "severity": "info",
+      "adjusted_severity": "info",
+      "contextual_verdict": "expected_by_purpose",
+      "payload_stored": false
+    },
+    {
+      "id": "MCP-010",
+      "capability": "network_egress",
+      "target": "search_docs",
+      "severity": "medium",
+      "contextual_verdict": "unexpected",
+      "payload_stored": false
+    },
+    {
+      "id": "MCP-010",
+      "capability": "credential_access",
+      "target": "env_reader",
+      "severity": "high",
+      "contextual_verdict": "unexpected",
+      "payload_stored": false
+    }
+  ]
+}
