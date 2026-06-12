@@ -1,0 +1,26 @@
+server_id: toy_alpha
+corpus_sha: "1111111111111111111111111111111111111111"
+labeler: placeholder
+label_date: "2026-06-11"
+properties:
+  - property_id: toy_alpha-P01
+    capability: shell_exec
+    tool: run_command
+    label: real_threat
+    evidence: >
+      Toy property for scoring scaffolding. This is not a real server label.
+    external_refs: []
+  - property_id: toy_alpha-P02
+    capability: file_read
+    tool: read_file
+    label: by_design
+    evidence: >
+      Toy by-design property for scoring scaffolding. This is not a real server label.
+    external_refs: []
+  - property_id: toy_alpha-P03
+    capability: network_egress
+    tool: search_docs
+    label: benign
+    evidence: >
+      Toy benign property for false-positive scoring scaffolding.
+    external_refs: []

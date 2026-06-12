@@ -15,6 +15,10 @@
 - Added deterministic purpose profiles and a documented static purpose taxonomy.
 - Added deterministic contextual verdicts with adjusted severity.
 - Added SARIF 2.1.0 output for single-target scans.
+- Added corpus ground-truth label schema validation and scoring tooling.
+- Added provisional corpus score outputs and an unmapped findings review queue.
+- Added exact toy corpus metric tests using hand-computed expected values.
+- Added a benchmark method skeleton for label freeze, review, disputes, and reproduction.
 
 ### Changed
 

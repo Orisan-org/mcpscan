@@ -1,0 +1,6 @@
+scanner: mcpscan
+rules:
+  - finding_id: MCP-010
+    match: capability_and_tool
+  - finding_id: MCP-030
+    match: capability_and_tool

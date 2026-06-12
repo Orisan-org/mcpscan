@@ -1,0 +1,12 @@
+server_id: toy_beta
+corpus_sha: "2222222222222222222222222222222222222222"
+labeler: placeholder
+label_date: "2026-06-11"
+properties:
+  - property_id: toy_beta-P01
+    capability: network_egress
+    tool: fetch
+    label: real_threat
+    evidence: >
+      Toy property for scoring scaffolding. This is not a real server label.
+    external_refs: []
