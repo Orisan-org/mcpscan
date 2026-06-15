@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shlex
 from collections.abc import Iterable
 from urllib.parse import urlparse
@@ -38,7 +39,7 @@ def resolve_target(
         if target and target.startswith(("http://", "https://")):
             raise TargetError("--command cannot be combined with a remote URL target.")
         try:
-            command_parts = shlex.split(command)
+            command_parts = shlex.split(command, posix=os.name != "nt")
         except ValueError as exc:
             raise TargetError(f"Invalid command: {exc}") from exc
         if not command_parts:
