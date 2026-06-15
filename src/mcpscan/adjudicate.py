@@ -12,7 +12,7 @@ from mcpscan.models import (
 from mcpscan.purpose import load_capability_keywords
 from mcpscan.utils.severity import increase_severity
 
-DOWNGRADE_ELIGIBLE_ALWAYS = {"MCP-010", "MCP-030"}
+DOWNGRADE_ELIGIBLE = {"MCP-010"}
 
 
 def adjudicate_findings(findings: list[Finding], profile: PurposeProfile) -> list[Finding]:
@@ -35,7 +35,10 @@ def _adjudicate_finding(finding: Finding, profile: PurposeProfile) -> Finding:
             "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication.",
         )
 
-    if finding.capability in profile.expected_capabilities:
+    if (
+        finding.capability in profile.expected_capabilities
+        and profile.category_source == PurposeSource.FLAG
+    ):
         if _downgrade_eligible(finding, profile):
             return _updated(
                 finding,
@@ -69,7 +72,7 @@ def _adjudicate_finding(finding: Finding, profile: PurposeProfile) -> Finding:
 
 
 def _downgrade_eligible(finding: Finding, profile: PurposeProfile) -> bool:
-    if finding.id in DOWNGRADE_ELIGIBLE_ALWAYS:
+    if finding.id in DOWNGRADE_ELIGIBLE:
         return True
     return finding.id == "MCP-021" and profile.category in {
         PurposeCategory.FILESYSTEM,
