@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 from typing import Any
 
 from mcpscan.connectors.base import Connector
@@ -35,7 +36,7 @@ class StdioConnector(Connector):
                 "The official mcp Python SDK is required for stdio scanning."
             ) from exc
 
-        command = self.target.command[0]
+        command = _resolve_executable(self.target.command[0])
         args = self.target.command[1:]
         params = StdioServerParameters(
             command=command,
@@ -112,3 +113,11 @@ def _to_dict(value: Any) -> dict[str, Any]:
         if not callable(item):
             result[key] = item
     return result
+
+
+def _resolve_executable(command: str) -> str:
+    if sys.platform != "win32" or os.path.splitext(command)[1]:
+        return command
+    if command.lower() in {"npx", "npm", "pnpm", "yarn"}:
+        return f"{command}.cmd"
+    return command
