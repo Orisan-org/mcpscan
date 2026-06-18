@@ -162,6 +162,45 @@ def test_scan_config_yes_json_report(tmp_path) -> None:
     assert "hunter2" not in out.read_text(encoding="utf-8")
 
 
+def test_scan_config_can_write_shared_envelope(tmp_path) -> None:
+    config = write_config(
+        tmp_path,
+        {
+            "mcpServers": {
+                "malicious": {
+                    "command": sys.executable,
+                    "args": ["tests/fixtures/malicious_server.py"],
+                },
+            }
+        },
+    )
+    out = tmp_path / "report.json"
+    envelope_out = tmp_path / "envelope.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "scan-config",
+            str(config),
+            "--yes",
+            "--output",
+            "json",
+            "--out",
+            str(out),
+            "--envelope-out",
+            str(envelope_out),
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(envelope_out.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "1.0.0"
+    assert payload["producer"]["tool"] == "mcpscan"
+    assert payload["inventory"]
+    assert payload["coverage"]
+    assert payload["findings"]
+
+
 def test_scan_config_without_yes_can_decline_execution(tmp_path) -> None:
     sentinel = tmp_path / "executed.txt"
     config = write_config(
