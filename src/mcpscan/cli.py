@@ -14,6 +14,7 @@ from mcpscan.config_scanner import scan_mcp_configs
 from mcpscan.constants import EXIT_ENUMERATION, EXIT_FINDINGS, EXIT_INTERNAL, EXIT_OK, EXIT_USAGE
 from mcpscan.errors import EnumerationError, McpScanError, TargetError
 from mcpscan.models import ConfiguredServer, PurposeCategory, Severity, Transport
+from mcpscan.reporters.envelope import render_config_envelope, render_envelope
 from mcpscan.reporters.json_reporter import render_config_json, render_json
 from mcpscan.reporters.markdown import render_config_markdown, render_markdown
 from mcpscan.reporters.sarif import render_sarif
@@ -75,6 +76,10 @@ def scan(
         str, typer.Option("--output", help="Report output: table, json, md, sarif.")
     ] = "table",
     out: Annotated[Path | None, typer.Option("--out", help="Write report to path.")] = None,
+    envelope_out: Annotated[
+        Path | None,
+        typer.Option("--envelope-out", help="Write shared Orisan envelope JSON to path."),
+    ] = None,
     baseline: Annotated[
         Path | None,
         typer.Option("--baseline", help="Previous JSON report to compare for MCP-002 drift."),
@@ -126,6 +131,8 @@ def scan(
             out.write_text(rendered, encoding="utf-8")
         else:
             typer.echo(rendered, nl=False)
+        if envelope_out:
+            envelope_out.write_text(render_envelope(result), encoding="utf-8")
         exit_code = EXIT_OK
         if any(
             severity_gte(effective_severity(finding), severity_threshold)
@@ -171,6 +178,10 @@ def scan_config_command(
         str, typer.Option("--output", help="Report output: table, terminal, json, md, markdown.")
     ] = "table",
     out: Annotated[Path | None, typer.Option("--out", help="Write report to path.")] = None,
+    envelope_out: Annotated[
+        Path | None,
+        typer.Option("--envelope-out", help="Write shared Orisan envelope JSON to path."),
+    ] = None,
     baseline_dir: Annotated[
         Path | None,
         typer.Option(
@@ -223,6 +234,8 @@ def scan_config_command(
             out.write_text(rendered, encoding="utf-8")
         else:
             typer.echo(rendered, nl=False)
+        if envelope_out:
+            envelope_out.write_text(render_config_envelope(result), encoding="utf-8")
 
         if not result.server_results and result.failures:
             raise typer.Exit(EXIT_ENUMERATION)
