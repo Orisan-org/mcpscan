@@ -27,6 +27,7 @@ Use `scan-config` when a review starts from an MCP client config instead of a si
 ```bash
 mcpscan scan-config ./mcp.json --yes
 mcpscan scan-config ./.mcp.json --yes --output json --out /tmp/mcpscan-config-report.json
+mcpscan scan-config ./.mcp.json --yes --push-envelope --control-plane-url http://127.0.0.1:8787
 ```
 
 Supported config shape:
@@ -48,6 +49,8 @@ Supported config shape:
 `scan-config` scans explicit config paths and can also discover known local MCP config locations for Claude Desktop, Claude Code, Cursor, and Windsurf. Stdio entries prompt before local execution unless `--yes` is provided. Remote URL entries do not prompt because they do not execute local commands.
 
 Environment values from config files are passed to stdio servers but are redacted from all output. Reports show env names/counts only.
+
+Use `--push-envelope` to POST the shared Orisan envelope directly to the control plane. The control-plane URL defaults to `ORISAN_CONTROL_PLANE_URL` or `http://127.0.0.1:8787`; pass `--ingest-token` or set `ORISAN_INGEST_TOKEN` when the ingest endpoint requires bearer auth.
 
 ## Scan A Stdio MCP Server
 

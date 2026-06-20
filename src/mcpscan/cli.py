@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 from typing import Annotated
 
+import httpx
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -80,6 +82,20 @@ def scan(
         Path | None,
         typer.Option("--envelope-out", help="Write shared Orisan envelope JSON to path."),
     ] = None,
+    push_envelope: Annotated[
+        bool,
+        typer.Option(
+            "--push-envelope", help="POST the shared Orisan envelope to the control plane."
+        ),
+    ] = False,
+    control_plane_url: Annotated[
+        str,
+        typer.Option("--control-plane-url", help="Control-plane base URL."),
+    ] = os.environ.get("ORISAN_CONTROL_PLANE_URL", "http://127.0.0.1:8787"),
+    ingest_token: Annotated[
+        str | None,
+        typer.Option("--ingest-token", help="Control-plane ingest bearer token."),
+    ] = os.environ.get("ORISAN_INGEST_TOKEN"),
     baseline: Annotated[
         Path | None,
         typer.Option("--baseline", help="Previous JSON report to compare for MCP-002 drift."),
@@ -132,7 +148,19 @@ def scan(
         else:
             typer.echo(rendered, nl=False)
         if envelope_out:
-            envelope_out.write_text(render_envelope(result), encoding="utf-8")
+            envelope_payload = render_envelope(result)
+            envelope_out.write_text(envelope_payload, encoding="utf-8")
+        elif push_envelope:
+            envelope_payload = render_envelope(result)
+        else:
+            envelope_payload = None
+        if push_envelope and envelope_payload is not None:
+            run_id = _push_envelope(envelope_payload, control_plane_url, ingest_token)
+            if not out and not rendered.endswith("\n"):
+                typer.echo()
+            typer.echo(
+                f"Envelope pushed: {control_plane_url.rstrip('/')}/v1/envelopes run_id={run_id}"
+            )
         exit_code = EXIT_OK
         if any(
             severity_gte(effective_severity(finding), severity_threshold)
@@ -182,6 +210,20 @@ def scan_config_command(
         Path | None,
         typer.Option("--envelope-out", help="Write shared Orisan envelope JSON to path."),
     ] = None,
+    push_envelope: Annotated[
+        bool,
+        typer.Option(
+            "--push-envelope", help="POST the shared Orisan envelope to the control plane."
+        ),
+    ] = False,
+    control_plane_url: Annotated[
+        str,
+        typer.Option("--control-plane-url", help="Control-plane base URL."),
+    ] = os.environ.get("ORISAN_CONTROL_PLANE_URL", "http://127.0.0.1:8787"),
+    ingest_token: Annotated[
+        str | None,
+        typer.Option("--ingest-token", help="Control-plane ingest bearer token."),
+    ] = os.environ.get("ORISAN_INGEST_TOKEN"),
     baseline_dir: Annotated[
         Path | None,
         typer.Option(
@@ -235,7 +277,19 @@ def scan_config_command(
         else:
             typer.echo(rendered, nl=False)
         if envelope_out:
-            envelope_out.write_text(render_config_envelope(result), encoding="utf-8")
+            envelope_payload = render_config_envelope(result)
+            envelope_out.write_text(envelope_payload, encoding="utf-8")
+        elif push_envelope:
+            envelope_payload = render_config_envelope(result)
+        else:
+            envelope_payload = None
+        if push_envelope and envelope_payload is not None:
+            run_id = _push_envelope(envelope_payload, control_plane_url, ingest_token)
+            if not out and not rendered.endswith("\n"):
+                typer.echo()
+            typer.echo(
+                f"Envelope pushed: {control_plane_url.rstrip('/')}/v1/envelopes run_id={run_id}"
+            )
 
         if not result.server_results and result.failures:
             raise typer.Exit(EXIT_ENUMERATION)
@@ -279,6 +333,28 @@ def _render_config(result, *, output: str, no_color: bool) -> str:
     if output in {"md", "markdown"}:
         return render_config_markdown(result)
     raise TargetError("--output must be one of: table, terminal, json, md, markdown.")
+
+
+def _push_envelope(envelope_payload: str, control_plane_url: str, ingest_token: str | None) -> str:
+    endpoint = f"{control_plane_url.rstrip('/')}/v1/envelopes"
+    headers = {"content-type": "application/json"}
+    if ingest_token:
+        headers["authorization"] = f"Bearer {ingest_token}"
+    try:
+        response = httpx.post(endpoint, content=envelope_payload, headers=headers, timeout=10.0)
+    except httpx.HTTPError as exc:
+        raise McpScanError(f"Failed to push envelope to control plane: {exc}") from exc
+    if response.status_code < 200 or response.status_code > 299:
+        raise McpScanError(
+            f"Control plane rejected envelope: HTTP {response.status_code}: {response.text[:500]}"
+        )
+    try:
+        body = response.json()
+    except ValueError:
+        return "unknown"
+    run = body.get("run") if isinstance(body, dict) else None
+    run_id = run.get("run_id") if isinstance(run, dict) else None
+    return str(run_id or "unknown")
 
 
 def _parse_only(value: str | None) -> set[str] | None:
