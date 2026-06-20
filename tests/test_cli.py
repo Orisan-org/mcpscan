@@ -7,7 +7,8 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from mcpscan.cli import app
+from mcpscan.cli import _push_envelope, app
+from mcpscan.errors import McpScanError
 
 runner = CliRunner()
 
@@ -199,6 +200,90 @@ def test_scan_config_can_write_shared_envelope(tmp_path) -> None:
     assert payload["inventory"]
     assert payload["coverage"]
     assert payload["findings"]
+
+
+def test_scan_config_can_push_shared_envelope(tmp_path, monkeypatch) -> None:
+    config = write_config(
+        tmp_path,
+        {
+            "mcpServers": {
+                "malicious": {
+                    "command": sys.executable,
+                    "args": ["tests/fixtures/malicious_server.py"],
+                },
+            }
+        },
+    )
+    calls = []
+
+    class FakeResponse:
+        status_code = 202
+        text = '{"run":{"run_id":"run_123"}}'
+
+        def json(self):
+            return {"run": {"run_id": "run_123"}}
+
+    def fake_post(url, *, content, headers, timeout):
+        calls.append(
+            {
+                "url": url,
+                "content": content,
+                "headers": headers,
+                "timeout": timeout,
+            }
+        )
+        return FakeResponse()
+
+    monkeypatch.setattr("mcpscan.cli.httpx.post", fake_post)
+
+    result = runner.invoke(
+        app,
+        [
+            "scan-config",
+            str(config),
+            "--yes",
+            "--output",
+            "json",
+            "--push-envelope",
+            "--control-plane-url",
+            "http://control-plane.test",
+            "--ingest-token",
+            "secret",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Envelope pushed: http://control-plane.test/v1/envelopes run_id=run_123" in result.output
+    assert len(calls) == 1
+    assert calls[0]["url"] == "http://control-plane.test/v1/envelopes"
+    assert calls[0]["headers"] == {
+        "content-type": "application/json",
+        "authorization": "Bearer secret",
+    }
+    assert calls[0]["timeout"] == 10.0
+    payload = json.loads(calls[0]["content"])
+    assert payload["schema_version"] == "1.0.0"
+    assert payload["producer"]["tool"] == "mcpscan"
+    assert payload["findings"]
+
+
+def test_push_envelope_raises_when_control_plane_rejects(monkeypatch) -> None:
+    class FakeResponse:
+        status_code = 400
+        text = '{"error":"invalid_envelope"}'
+
+    def fake_post(url, *, content, headers, timeout):
+        return FakeResponse()
+
+    monkeypatch.setattr("mcpscan.cli.httpx.post", fake_post)
+
+    try:
+        _push_envelope("{}", "http://control-plane.test/", None)
+    except McpScanError as exc:
+        assert "Control plane rejected envelope: HTTP 400" in str(exc)
+        assert "invalid_envelope" in str(exc)
+    else:
+        raise AssertionError("expected McpScanError")
 
 
 def test_scan_config_without_yes_can_decline_execution(tmp_path) -> None:
