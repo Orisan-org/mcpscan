@@ -4,6 +4,16 @@
 
 It connects to an MCP server over stdio or tested Streamable HTTP, enumerates exposed tools/resources/prompts/metadata, runs deterministic checks, and emits terminal, JSON, or Markdown findings before an AI agent trusts that server.
 
+## Install and run in one line
+
+Run `mcpscan` without cloning, in a throwaway environment, with [uvx](https://docs.astral.sh/uv/) (or `pipx run`):
+
+```bash
+uvx --from git+https://github.com/Orisan-org/mcpscan mcpscan scan --command "npx -y @modelcontextprotocol/server-everything"
+```
+
+`uvx` fetches mcpscan into an isolated environment and runs it in one step; swap `--command` for the MCP server you want to scan. The pipx equivalent is `pipx run --spec git+https://github.com/Orisan-org/mcpscan mcpscan --help`.
+
 ## 60-Second Quickstart
 
 From a cloned repo:
