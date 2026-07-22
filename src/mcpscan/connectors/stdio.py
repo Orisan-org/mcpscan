@@ -6,7 +6,7 @@ import sys
 from typing import Any
 
 from mcpscan.connectors.base import Connector
-from mcpscan.errors import EnumerationError, exception_summary
+from mcpscan.errors import EnumerationError, exception_summary, unwrap_exception_group
 from mcpscan.models import ScanContext, ServerInfo
 from mcpscan.normalizer import normalize_prompts, normalize_resources, normalize_tools
 
@@ -71,9 +71,31 @@ class StdioConnector(Connector):
         except EnumerationError:
             raise
         except Exception as exc:
-            raise EnumerationError(
-                f"Failed to enumerate stdio MCP server: {exception_summary(exc)}"
-            ) from exc
+            command = self.target.raw or " ".join(self.target.command or [])
+            raise EnumerationError(_stdio_failure_message(command, exc)) from exc
+
+
+def _stdio_failure_message(command: str, exc: BaseException) -> str:
+    """Turn a raw stdio failure (e.g. 'McpError: Connection closed') into a human
+    message that names the server command and the likely cause. Error text only --
+    detection, scoring, and verdicts are untouched."""
+    summary = exception_summary(exc)
+    root = unwrap_exception_group(exc)
+    name = command.strip() if command else "(unknown command)"
+    closed_early = (
+        isinstance(root, FileNotFoundError)
+        or "connection closed" in summary.lower()
+        or "closed" in summary.lower()
+    )
+    if closed_early:
+        return (
+            f"Could not start MCP server: `{name}`. "
+            "The process exited before the MCP handshake completed. Likely causes: the "
+            "command failed to start (executable not found), or the package could not be "
+            "resolved or installed (for npx/uvx, check the package name). "
+            f"Run the command yourself to see the underlying error. [details: {summary}]"
+        )
+    return f"Failed to enumerate MCP server `{name}`: {summary}"
 
 
 async def _safe_list(session: Any, method_name: str, label: str, warnings: list[str]) -> Any:

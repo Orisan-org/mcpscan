@@ -1,324 +1,196 @@
 # mcpscan
 
-`mcpscan` is an alpha, local-first security scanner for Model Context Protocol servers.
+**mcpscan finds the security risks in a Model Context Protocol (MCP) server — dangerous tools, leaked secrets, injection surfaces, unsafe transport — and grades them, before an AI agent ever trusts that server. It runs entirely on your machine.**
 
-It connects to an MCP server over stdio or tested Streamable HTTP, enumerates exposed tools/resources/prompts/metadata, runs deterministic checks, and emits terminal, JSON, or Markdown findings before an AI agent trusts that server.
+> Installs from PyPI as **`orisan-mcpscan`**; the command it gives you is `mcpscan` (an `orisan-mcpscan` alias also works). It is an alpha.
 
-## Install and run in one line
+## Try it in ten seconds
 
-Run `mcpscan` without cloning, in a throwaway environment, with [uvx](https://docs.astral.sh/uv/) (or `pipx run`):
+No repo of your own, no MCP servers to configure. [uvx](https://docs.astral.sh/uv/) fetches mcpscan and runs it in one step, against a bundled sample config that includes one benign server and one deliberately risky one:
 
 ```bash
-uvx orisan-mcpscan scan-config ./mcp.json --yes
+uvx orisan-mcpscan scan-config examples/sample-mcp.json --yes
 ```
 
-`uvx` fetches `orisan-mcpscan` from PyPI into an isolated environment and runs it in one step. The installed command is `mcpscan` (or `orisan-mcpscan`). The pipx equivalent is `pipx run orisan-mcpscan --help`.
-
-## 60-Second Quickstart
-
-From a cloned repo:
+Run it from a checkout of this repo (the only file you need is `examples/sample-mcp.json`). From a bare machine, grab just that file first:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+curl -sO https://raw.githubusercontent.com/Orisan-org/mcpscan/main/examples/sample-mcp.json
+uvx orisan-mcpscan scan-config sample-mcp.json --yes
+```
+
+The first run downloads the two sample servers via `npx` (~30s cold); after that it is seconds.
+
+Real output — the risky server, which is handed broad filesystem access, grades **F**:
+
+```text
+Servers: 2 total, 2 scanned, 0 failed, 0 skipped
+Worst grade: F
+
+notes-memory
+  Transport: stdio
+  Purpose: memory_store (server_info)
+  Grade: A
+  No findings.
+
+risky-filesystem
+  Transport: stdio
+  Purpose: filesystem (server_info)
+  Grade: F
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ SEVERITY            ┃ VERDICT    ┃ ID      ┃ TARGET              ┃ FINDING                                        ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ CRITICAL (was HIGH) │ undeclared │ MCP-010 │ edit_file           │ Tool 'edit_file' appears to expose file write  │
+│ CRITICAL (was HIGH) │ undeclared │ MCP-010 │ write_file          │ Tool 'write_file' appears to expose file write │
+│ HIGH                │ unexpected │ MCP-010 │ get_file_info       │ Tool 'get_file_info' appears to expose read    │
+│ HIGH                │ unexpected │ MCP-010 │ read_file           │ Tool 'read_file' appears to expose file read   │
+│ HIGH                │ unexpected │ MCP-010 │ read_multiple_files │ Tool 'read_multiple_files' exposes file read   │
+└─────────────────────┴────────────┴─────────┴─────────────────────┴────────────────────────────────────────────────┘
+
+Privacy: payload_stored=false for all findings
+```
+
+How to read it:
+
+- **`CRITICAL (was HIGH)`** — the write tools are escalated from their base HIGH to CRITICAL. The number after "was" is always the original severity, so you can see exactly what context changed and why.
+- **`undeclared` vs `unexpected`** — `write_file`/`edit_file` are `undeclared`: the server's stated purpose never mentioned writing files, so unannounced write access is treated as worse. The read tools are `unexpected`: outside the declared purpose but at least visible in it. Nothing is hidden or suppressed — every finding is shown, escalated or not.
+- The benign `notes-memory` server grades **A** with no findings, so a clean server looks clean.
+
+## What it does, and what it does not do
+
+**What it does**
+
+- **Local-only.** It runs on your machine. It does not upload source code, prompts, secrets, raw MCP responses, or findings to Orisan or anyone else. The only network it touches is the MCP server you point it at.
+- **No LLM in the verdict path.** Every check, severity, verdict, and grade is deterministic pattern and heuristic logic. No model call decides whether something is a finding or what grade you get. (You can grep the codebase for `openai`/`anthropic`/`llm` and find nothing in the scan path.)
+- **Deterministic.** The same server produces the same verdict every time — byte-identical apart from the run timestamp. No randomness, no wall-clock, in the verdict.
+- **No telemetry.** No analytics, no phone-home, no usage beacons. The single outbound-reporting path is the **opt-in `--push-envelope` flag**, which POSTs a shared report envelope to a control-plane URL *you* provide; without that flag nothing leaves the machine.
+- **No suppression, no stored payloads.** It never drops a finding to make a server look cleaner; it escalates or annotates instead. Every finding carries redacted evidence only and sets `payload_stored=false`.
+
+**What it does not do (yet)**
+
+- **No fleet scanning.** One config or target per run. There is no multi-host inventory, dashboard, or continuous monitoring.
+- **No dependency / supply-chain scanning.** It inspects the MCP server's exposed surface (tools, resources, prompts, metadata), not the server's package tree or its dependencies.
+- **No IDE extension.** Command-line only; there is no editor or browser integration.
+- It also does not secure the model, enforce runtime policy, block agent actions, modify the target server, or monitor package registries.
+
+---
+
+## Install
+
+`uvx orisan-mcpscan …` (above) needs no install. To install the command persistently:
+
+```bash
+pipx install orisan-mcpscan     # or: uv tool install orisan-mcpscan
+mcpscan --help
+```
+
+From a cloned repo, for development:
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 mcpscan list-checks
-mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py"
+mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py"   # grade A, no findings
 ```
 
-Use `python -m venv .venv` instead if your system exposes Python 3 as `python`. Editable install may need network access to fetch build dependencies such as `hatchling`.
+## Scan your client configs
 
-The benign fixture should return grade `A` with no findings.
-
-## Scan Your Client Configs
-
-Use `scan-config` when a review starts from an MCP client config instead of a single server command:
+`scan-config` starts from an MCP client config instead of a single server command:
 
 ```bash
 mcpscan scan-config ./mcp.json --yes
-mcpscan scan-config ./.mcp.json --yes --output json --out /tmp/mcpscan-config-report.json
-mcpscan scan-config ./.mcp.json --yes --push-envelope --control-plane-url http://127.0.0.1:8787
+mcpscan scan-config ./.mcp.json --yes --output json --out report.json
 ```
 
-Supported config shape:
+Config shape (the standard `mcpServers` object):
 
 ```json
 {
   "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp/mcpscan-safe-root"]
-    },
-    "remote-dev": {
-      "url": "http://127.0.0.1:8000/mcp"
-    }
+    "filesystem": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp/safe"] },
+    "remote-dev": { "url": "http://127.0.0.1:8000/mcp" }
   }
 }
 ```
 
-`scan-config` scans explicit config paths and can also discover known local MCP config locations for Claude Desktop, Claude Code, Cursor, and Windsurf. Stdio entries prompt before local execution unless `--yes` is provided. Remote URL entries do not prompt because they do not execute local commands.
+`scan-config` scans config paths you pass explicitly, and can also discover known local MCP config locations for **Claude Desktop, Claude Code, Cursor, and Windsurf**. Stdio entries prompt before local execution unless `--yes` is given; remote URL entries never prompt. Environment values are passed to stdio servers but redacted from all output (names/counts only).
 
-Environment values from config files are passed to stdio servers but are redacted from all output. Reports show env names/counts only.
+Use `--push-envelope` to POST the shared Orisan envelope to a control plane (URL from `--control-plane-url` or `ORISAN_CONTROL_PLANE_URL`, default `http://127.0.0.1:8787`; bearer via `--ingest-token`/`ORISAN_INGEST_TOKEN`). This is the only outbound-reporting path and it is off by default.
 
-Use `--push-envelope` to POST the shared Orisan envelope directly to the control plane. The control-plane URL defaults to `ORISAN_CONTROL_PLANE_URL` or `http://127.0.0.1:8787`; pass `--ingest-token` or set `ORISAN_INGEST_TOKEN` when the ingest endpoint requires bearer auth.
-
-## Scan A Stdio MCP Server
-
-Stdio scans launch the command you provide, perform the MCP handshake, enumerate the server, and then run checks over the exposed definitions.
+## Scan a single server (stdio or HTTP)
 
 ```bash
+# stdio: launches the command locally, handshakes, enumerates, then checks it.
 mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py"
-```
 
-Important: stdio targets execute locally. Only scan commands you are willing to run on your machine.
-
-Cold-start `npx` or `uvx` servers can take 30+ seconds on first run. The default timeout is 90 seconds; use `--timeout` if your target needs more or less time.
-
-## Scan A Streamable HTTP MCP Server
-
-Streamable HTTP is the primary tested remote transport in this release. This local fixture starts an MCP server on `127.0.0.1:8000`.
-
-Terminal 1:
-
-```bash
-.venv/bin/python tests/fixtures/remote_streamable_server.py --port 8000
-```
-
-Terminal 2:
-
-```bash
+# Streamable HTTP (the primary tested remote transport):
 mcpscan scan http://127.0.0.1:8000/mcp --transport http
 ```
 
-Remote scans do not contact external services except the MCP server URL you provide. SSE is wired through the official MCP SDK when available, but it is not integration-tested in this release.
+Stdio targets execute locally — only scan commands you are willing to run. Cold-start `npx`/`uvx` servers can take 30+ seconds on first run; the default timeout is 90s (`--timeout` to change).
 
-## Write JSON, Markdown, Or SARIF Reports
-
-```bash
-mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output json --out /tmp/mcpscan-report.json
-mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output md --out /tmp/mcpscan-report.md
-mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output sarif --out /tmp/mcpscan-report.sarif
-```
-
-The malicious fixture intentionally returns findings, so these commands exit `1` when findings meet the default severity threshold.
-
-For GitHub code scanning upload, see [docs/CI.md](docs/CI.md).
-
-## Purpose Profiles
-
-Reports include a deterministic purpose profile describing what the MCP server claims to be. You can provide it explicitly:
+## Reports and exit codes
 
 ```bash
-mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py" --purpose-category filesystem
-mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py" --purpose "filesystem server for reading and writing files"
+mcpscan scan --command "…" --output json  --out report.json
+mcpscan scan --command "…" --output md    --out report.md
+mcpscan scan --command "…" --output sarif --out report.sarif   # SARIF 2.1.0 for CI/code-scanning
 ```
-
-If no purpose flag is provided, `mcpscan` uses server metadata such as name and instructions when available. Ambiguous or empty text resolves to `unknown`.
-
-Purpose profiles feed deterministic contextual verdicts and adjusted severities. The static taxonomy is documented in [docs/PURPOSE_TAXONOMY.md](docs/PURPOSE_TAXONOMY.md).
-
-## Context-Aware Verdicts
-
-`mcpscan` does not suppress findings. It labels each finding with a contextual verdict and keeps both original and adjusted severity when they differ.
-
-Verdicts are deterministic:
-
-- `expected_by_purpose`: the capability is inherent to the declared purpose and the check is downgrade-eligible.
-- `unexpected`: the capability is outside the purpose category, but the declared text mentions it.
-- `undeclared`: the capability is outside the purpose category and not mentioned in declared text.
-- `unadjudicated`: no declared purpose was available.
-
-Demo: expected filesystem access is reported for completeness:
-
-```bash
-mcpscan scan --command ".venv/bin/python tests/fixtures/purpose_filesystem_server.py" --purpose-category filesystem --no-color
-```
-
-Expected output includes:
-
-```text
-INFO (was HIGH)  expected_by_purpose  MCP-010  read_file
-```
-
-Demo: hidden file access in a weather server is escalated:
-
-```bash
-mcpscan scan --command ".venv/bin/python tests/fixtures/purpose_weather_file_server.py" --purpose "weather server" --no-color
-```
-
-Expected output includes:
-
-```text
-CRITICAL (was HIGH)  undeclared  MCP-010  read_file
-```
-
-Demo: declared URL fetching is still reported, but not escalated:
-
-```bash
-mcpscan scan --command ".venv/bin/python tests/fixtures/purpose_weather_fetch_server.py" --purpose "weather server that can fetch URLs" --no-color
-```
-
-Expected output includes:
-
-```text
-HIGH  unexpected  MCP-010  fetch
-```
-
-## What mcpscan Checks
-
-| ID | Title | Severity | Capability | OWASP MCP | Status |
-| --- | --- | --- | --- | --- | --- |
-| MCP-001 | Tool description prompt injection | high | prompt_anomaly | MCP03 | active |
-| MCP-002 | Tool definition drift | high | surface_drift | MCP03 | active with `--baseline` |
-| MCP-010 | Dangerous capability exposure | high | per finding | MCP02 | active |
-| MCP-020 | Secret exposure in metadata | critical | credential_access | MCP01 | active |
-| MCP-021 | Sensitive data or file exposure | high | data_exposure | MCP10 | active |
-| MCP-030 | Command or code injection surface | high | shell_exec/code_eval | MCP05 | active |
-| MCP-040 | Unauthenticated remote server | high | transport_security | MCP07 | active |
-| MCP-041 | Missing TLS | high | transport_security | MCP07 | active |
-| MCP-050 | Static known-name lookalike check using a curated seed list | medium | identity_spoof | MCP09 | active |
-
-Current coverage maps to OWASP MCP classes MCP01, MCP02, MCP03, MCP05, MCP07, MCP09, and MCP10. MCP04 supply chain analysis, MCP06 intent/flow issues, and MCP08 audit/telemetry gaps are out of scope for this alpha.
-
-MCP-002 runs only when you provide a previous JSON report with `--baseline` or use `scan-config --baseline-dir`. MCP-050 is an offline heuristic that compares exposed server/tool names against a curated static seed list of common MCP server names. It does not monitor package registries and should not be treated as exhaustive ecosystem coverage.
-
-## Drift Detection
-
-JSON reports include a `surface` block with hash-only snapshots of exposed tools, resources, and prompts. Description text is whitespace-normalized before hashing. Schemas are canonicalized with sorted JSON keys before hashing. The report does not add raw descriptions, schemas, or MCP responses to drift evidence.
-
-Create a baseline report:
-
-```bash
-mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py" --output json --out /tmp/mcpscan-baseline.json
-```
-
-Compare a later scan against that baseline:
-
-```bash
-mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server_v2.py" --baseline /tmp/mcpscan-baseline.json
-```
-
-For explicit MCP config scanning, keep one baseline per server name:
-
-```bash
-mcpscan scan-config ./mcp.json --yes --baseline-dir /tmp/mcpscan-baselines
-```
-
-MCP-002 emits high-severity findings for added tools, removed tools, description hash changes, and schema hash changes. Evidence uses tool names and hash prefixes only.
-
-## What Findings Look Like
-
-Each finding includes:
-
-- stable check ID
-- title
-- original severity
-- adjusted severity
-- contextual verdict
-- verdict reasoning
-- capability
-- OWASP MCP Top 10 ID
-- target
-- redacted evidence
-- remediation
-- reference
-- `payload_stored=false`
-
-Example:
-
-```json
-{
-  "id": "MCP-030",
-  "title": "Command or code injection surface",
-  "severity": "high",
-  "original_severity": "high",
-  "adjusted_severity": "high",
-  "contextual_verdict": "unadjudicated",
-  "verdict_reasoning": "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication.",
-  "capability": "shell_exec",
-  "owasp_mcp": "MCP05",
-  "target": "run_command",
-  "evidence": "Tool 'run_command' accepts unconstrained string parameter 'command' and appears to execute commands or code.",
-  "remediation": "Constrain executable inputs with enums, patterns, length limits, allowlists, and server-side validation.",
-  "reference": "OWASP MCP Top 10: Injection",
-  "payload_stored": false
-}
-```
-
-## Privacy And Evidence Model
-
-By default, `mcpscan` runs locally. It does not upload source code, prompts, secrets, raw MCP responses, or findings to Orisan or any external service.
-
-Findings store safe, redacted evidence only. They identify the location and class of risk without storing full raw payloads. Every finding sets `payload_stored=false`.
-
-Do not place secrets directly in `--command`, headers, or report output paths. Reports may include user-provided target strings such as the stdio command for traceability.
-
-## Exit Codes
 
 | Code | Meaning |
 | --- | --- |
-| `0` | Scan completed and no finding met the severity threshold |
-| `1` | Scan completed and at least one finding met the severity threshold |
-| `2` | User input or CLI usage error |
+| `0` | Scan completed; no finding met the severity threshold |
+| `1` | Scan completed; at least one finding met the threshold |
+| `2` | User input / CLI usage error |
 | `3` | Connection or enumeration error |
 | `4` | Internal scanner error |
 
-Use `--severity-threshold low|medium|high|critical` to control when findings return exit `1`.
-
-## Supported Transports
+`--severity-threshold low|medium|high|critical` controls when findings return exit `1`.
 
 | Transport | Status |
 | --- | --- |
-| stdio | Tested with local fixture servers |
-| Streamable HTTP | Tested with a local fixture server |
-| SSE | Wired through the installed MCP SDK when available, but not integration-tested |
+| stdio | Tested |
+| Streamable HTTP | Tested |
+| SSE | Wired through the MCP SDK when available; not integration-tested |
 
-## Limitations And Non-Goals
+## Context-aware verdicts (no suppression)
 
-`mcpscan` does not secure the model, enforce runtime policy, block agent actions, modify the target server, monitor registries, upload findings, or use LLM verdicts.
+mcpscan never suppresses a finding. It labels each with a deterministic contextual verdict and keeps both original and adjusted severity when they differ:
 
-Dynamic probing, HTML reports, registry monitoring, GitHub Action packaging, SaaS dashboards, and runtime enforcement are not part of this alpha release.
+- `expected_by_purpose` — inherent to the declared purpose; downgrade-eligible (e.g. `INFO (was HIGH)`).
+- `unexpected` — outside the purpose category, but mentioned in declared text.
+- `undeclared` — outside the purpose category and not mentioned; treated as worse (e.g. `CRITICAL (was HIGH)`).
+- `unadjudicated` — no declared purpose was available.
 
-`scan-config` only scans MCP config files that you explicitly pass or known local config paths it discovers. It does not scan arbitrary home-directory contents, source trees, browser profiles, or secrets stores.
+Provide purpose with `--purpose "…"` or `--purpose-category filesystem`; otherwise server metadata is used, and ambiguous text resolves to `unknown`. Taxonomy in [docs/PURPOSE_TAXONOMY.md](docs/PURPOSE_TAXONOMY.md).
 
-## Development And Verification
+## What mcpscan checks
 
-Run the local quality gates:
+| ID | Title | Base severity | OWASP MCP | Status |
+| --- | --- | --- | --- | --- |
+| MCP-001 | Tool description prompt injection | high | MCP03 | active |
+| MCP-002 | Tool definition drift | high | MCP03 | active with `--baseline` |
+| MCP-010 | Dangerous capability exposure | high | MCP02 | active |
+| MCP-020 | Secret exposure in metadata | critical | MCP01 | active |
+| MCP-021 | Sensitive data / file exposure | high | MCP10 | active |
+| MCP-030 | Command or code injection surface | high | MCP05 | active |
+| MCP-040 | Unauthenticated remote server | high | MCP07 | active |
+| MCP-041 | Missing TLS | high | MCP07 | active |
+| MCP-050 | Known-name lookalike (curated seed list) | medium | MCP09 | active |
+
+Coverage maps to OWASP MCP classes MCP01, MCP02, MCP03, MCP05, MCP07, MCP09, MCP10. MCP04 (supply chain), MCP06 (tool shadowing), and MCP08 (audit/logging) are out of scope for this alpha. MCP-002 runs only with `--baseline`/`scan-config --baseline-dir`. MCP-050 is an offline heuristic against a curated static seed list, not registry monitoring.
+
+## Privacy and evidence model
+
+By default mcpscan runs locally and uploads nothing. Findings store safe, redacted evidence only — location and class of risk, never full raw payloads — and every finding sets `payload_stored=false`. JSON reports include a `surface` block of hash-only snapshots (descriptions whitespace-normalized, schemas key-sorted, before hashing). Do not put secrets in `--command`, headers, or output paths; reports may echo the target string for traceability.
+
+## Development
 
 ```bash
-ruff format --check .
-ruff check .
-pytest
+ruff format --check . && ruff check . && pytest
 python -m mcpscan --help
-python -m mcpscan scan-config --help
-python -m mcpscan list-checks
+pytest -m network   # network-dependent stdio checks, excluded from default pytest
 ```
-
-Network-dependent stdio checks are excluded from default `pytest`. To run them manually:
-
-```bash
-pytest -m network
-```
-
-Release-readiness smoke checks:
-
-```bash
-mcpscan scan --command ".venv/bin/python tests/fixtures/benign_server.py"
-mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --severity-threshold high
-mcpscan scan --command ".venv/bin/python tests/fixtures/malicious_server.py" --output json --out /tmp/mcpscan-smoke.json || test $? -eq 1
-mcpscan scan-config tests/fixtures/configs/mixed.json --yes --output json --out /tmp/mcpscan-config-smoke.json || test $? -eq 1
-```
-
-For Streamable HTTP, start the local fixture and scan it:
-
-```bash
-.venv/bin/python tests/fixtures/remote_streamable_server.py --port 8000
-mcpscan scan http://127.0.0.1:8000/mcp --transport http
-```
-
-## Field Validation
-
-After the alpha release, use [docs/VALIDATION_PROTOCOL.md](docs/VALIDATION_PROTOCOL.md) for repeatable real-world MCP server testing and record sanitized notes in [docs/VALIDATION_RESULTS.md](docs/VALIDATION_RESULTS.md). Validation notes must not include raw MCP responses, prompt payloads, source code, credentials, or secrets.
 
 ## License
 
