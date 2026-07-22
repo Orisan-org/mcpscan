@@ -46,11 +46,18 @@ python -m mcpscan scan http://127.0.0.1:8000/mcp --transport http || test $? -eq
 - CI is green on the release commit.
 - Version in `pyproject.toml` and `src/mcpscan/__init__.py` matches the intended tag.
 
-## Tag
+## Tag and publish
 
-Use the next alpha tag, for example `v0.1.0-alpha.N`:
+The first stable release `v0.1.0` shipped to PyPI as `orisan-mcpscan` on 2026-07-23.
+For subsequent stable releases use a `vX.Y.Z` tag (pre-releases may use
+`vX.Y.Z-alpha.N`), then build and upload:
 
 ```bash
-git tag v0.1.0-alpha.N
-git push origin v0.1.0-alpha.N
+git tag vX.Y.Z && git push origin vX.Y.Z
+python -m build          # build from a pristine checkout — a venv inside the tree bloats the sdist
+twine check dist/*
+twine upload dist/*      # credentials from ~/.pypirc; distribution name is orisan-mcpscan
 ```
+
+Note: PyPI blocks the distribution name `mcpscan` as too similar to existing
+projects; publish as `orisan-mcpscan`. The import package and CLI remain `mcpscan`.

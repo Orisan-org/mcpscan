@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.0 - 2026-07-23
+
+First public release, published to PyPI as `orisan-mcpscan` (the distribution name
+`mcpscan` is blocked by PyPI's name-similarity guard; the import package and CLI
+command remain `mcpscan`). Full test suite green on Python 3.11-3.14. All entries
+below shipped in 0.1.0.
+
 ### Added
 
 - Added the approved build plan to `docs/BUILD_PLAN.md`.
