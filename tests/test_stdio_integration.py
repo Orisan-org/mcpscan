@@ -80,7 +80,10 @@ def test_stdio_bad_process_error_unwraps_taskgroup() -> None:
     )
 
     assert result.exit_code == 3
-    assert "Failed to enumerate stdio MCP server" in result.output
+    # Human failure message names the command and the likely cause, and never leaks
+    # the raw TaskGroup/ExceptionGroup/"Connection closed" internals.
+    assert "Could not start MCP server" in result.output
+    assert "failed to start" in result.output
     assert "TaskGroup" not in result.output
     assert "ExceptionGroup" not in result.output
 

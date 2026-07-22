@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "notes-memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "risky-filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/"]
+    }
+  }
+}
