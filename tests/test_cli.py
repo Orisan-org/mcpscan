@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -122,13 +123,21 @@ def write_config(tmp_path, payload: dict) -> Path:
     return path
 
 
+def _plain_help(output: str) -> str:
+    """Normalize Rich help rendering so assertions survive version drift: strip ANSI,
+    collapse wrapping whitespace, lowercase. (Typer 0.27 renders the argument metavar
+    as lowercase `config_path`; older versions used `CONFIG_PATH`.)"""
+    return re.sub(r"\s+", " ", re.sub(r"\x1b\[[0-9;]*m", "", output)).lower()
+
+
 def test_scan_config_help_works() -> None:
     result = runner.invoke(app, ["scan-config", "--help"])
 
     assert result.exit_code == 0
-    assert "scan-config" in result.output
-    assert "CONFIG_PATH" in result.output
-    assert "Execute configured" in result.output
+    plain = _plain_help(result.output)
+    assert "scan-config" in plain
+    assert "config_path" in plain
+    assert "execute configured" in plain
 
 
 def test_scan_config_yes_json_report(tmp_path) -> None:
