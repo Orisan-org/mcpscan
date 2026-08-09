@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 - 2026-08-09
+
+Correctness and honesty release. Remote scanning worked again from a fresh install,
+the adjudicator stopped contradicting its own header, and two entries in the build
+brief were corrected rather than implemented. Green against the dependency set pinned
+in this release (`mcp[cli]>=1.0.0,<2`); the `wheel-canary` workflow re-verifies that
+weekly against a fresh resolution.
 
 ### Added
 

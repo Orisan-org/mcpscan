@@ -260,10 +260,21 @@ def test_wheel_is_the_orisan_mcpscan_distribution(wheel_path: Path) -> None:
 
 
 def test_installed_console_script_reports_its_version(wheel_env: Path, workdir: Path) -> None:
+    """The installed artifact must report the version this repo declares.
+
+    Read from pyproject rather than hardcoded: a release bump that updated the source
+    but not the wheel is exactly what this harness exists to catch, and a literal here
+    would have to be edited in lockstep with the thing it is checking.
+    """
+    import tomllib
+
+    declared = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
     result = _mcpscan(["version"], wheel_env=wheel_env, workdir=workdir)
 
     assert result.returncode == 0, _fail("mcpscan version failed", result)
-    assert "0.1.0" in result.stdout, _fail("mcpscan version did not report 0.1.0", result)
+    assert declared in result.stdout, _fail(
+        f"installed wheel reports a different version than pyproject ({declared})", result
+    )
 
 
 def test_installed_console_script_lists_checks(wheel_env: Path, workdir: Path) -> None:

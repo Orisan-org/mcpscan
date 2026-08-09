@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+import mcpscan
 from mcpscan.cli import _push_envelope, app
 from mcpscan.constants import EXIT_USAGE
 from mcpscan.errors import McpScanError
@@ -79,7 +80,7 @@ def test_version_works() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert mcpscan.__version__ in result.output
 
 
 def test_module_entrypoint_help_works() -> None:
