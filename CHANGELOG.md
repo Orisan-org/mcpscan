@@ -33,8 +33,10 @@
   Failures exit `3`; an all-skipped run exits `2`.
 - The environment a stdio server is launched with is now computed by mcpscan
   (`connectors/stdio.child_environment`) instead of being left to the mcp SDK's default:
-  the SDK's safe allowlist, with config values overlaid on top. No behaviour change
-  today; it stops the child environment being a property of whichever SDK is resolved.
+  the SDK's safe allowlist, with config values overlaid on top, and the rest of
+  `os.environ` withheld from a process mcpscan runs because it may be hostile. No
+  behaviour change today; it stops the child environment being a property of whichever
+  SDK is resolved.
 
 ### Fixed
 

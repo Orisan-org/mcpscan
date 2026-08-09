@@ -2,8 +2,9 @@
 
 Bug 2b is real and fixed here: a grade was reported when nothing had been scanned.
 
-Bug 2 as written in the brief **did not reproduce**. See the PR and the brief's
-correction for the evidence. What is kept from it is the regression test it asked for —
+Bug 2 is **withdrawn**: not reproducible, and not fixed. The reporter re-ran it in the
+original environment with no code change and probed the child, which receives PATH and
+HOME intact. See the brief. What is kept from it is the regression test it asked for —
 a config with no `env` block must launch a server that needs PATH resolution — plus a
 tightening the investigation did surface: the child environment is now mcpscan's own
 decision rather than a property of whichever mcp SDK version got resolved.
