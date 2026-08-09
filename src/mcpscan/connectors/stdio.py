@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import os
 import sys
 from typing import Any
@@ -20,9 +21,10 @@ class StdioConnector(Connector):
             )
         except TimeoutError as exc:
             raise EnumerationError(
-                f"stdio handshake timed out after {self.timeout_seconds:.0f}s. "
-                "Cold-start npx/uvx servers can take 30+ seconds on first run. "
-                "Retry, or raise --timeout."
+                _handshake_timeout_message(
+                    self.target.raw or " ".join(self.target.command or []),
+                    self.timeout_seconds,
+                )
             ) from exc
 
     async def _enumerate(self) -> ScanContext:
@@ -122,27 +124,76 @@ def child_environment(configured_env: dict[str, str] | None) -> dict[str, str]:
     return env
 
 
+# Slice G of BRIEF-0.1.1.md. `Connection closed` covered three different failures:
+# a command that never started, a process that started and died, and a process that
+# started and was still working when the timeout expired. Those need three different
+# responses from the operator, and collapsing them cost this release a wrong diagnosis
+# — bug 2 was filed against environment handling on the strength of that wording, and
+# withdrawn once the process turned out to be fine and merely slow.
+#
+# Error text only. Detection, scoring and verdicts are untouched by this module.
+STAGE_SPAWN = "spawn"
+STAGE_HANDSHAKE = "handshake"
+
+
+def _command_label(command: str) -> str:
+    """The command as the operator gave it. Config targets arrive pre-redacted."""
+    return command.strip() if command and command.strip() else "(unknown command)"
+
+
 def _stdio_failure_message(command: str, exc: BaseException) -> str:
-    """Turn a raw stdio failure (e.g. 'McpError: Connection closed') into a human
-    message that names the server command and the likely cause. Error text only --
-    detection, scoring, and verdicts are untouched."""
     summary = exception_summary(exc)
     root = unwrap_exception_group(exc)
-    name = command.strip() if command else "(unknown command)"
-    closed_early = (
-        isinstance(root, FileNotFoundError)
-        or "connection closed" in summary.lower()
-        or "closed" in summary.lower()
-    )
-    if closed_early:
+    name = _command_label(command)
+
+    if _is_spawn_failure(root):
         return (
-            f"Could not start MCP server: `{name}`. "
-            "The process exited before the MCP handshake completed. Likely causes: the "
-            "command failed to start (executable not found), or the package could not be "
-            "resolved or installed (for npx/uvx, check the package name). "
-            f"Run the command yourself to see the underlying error. [details: {summary}]"
+            f"MCP server failed at the {STAGE_SPAWN} stage: the command never started.\n"
+            f"  command: {name}\n"
+            "The executable could not be run. Check the name, and that it is on PATH. "
+            "No server code was executed. "
+            f"[details: {summary}]"
         )
-    return f"Failed to enumerate MCP server `{name}`: {summary}"
+
+    if "closed" in summary.lower():
+        return (
+            f"MCP server failed at the {STAGE_HANDSHAKE} stage: the process started, "
+            "then exited before completing the MCP handshake.\n"
+            f"  command: {name}\n"
+            "This is not a missing executable and not a timeout — the process ran and "
+            "stopped. Run the command yourself to see what it printed. "
+            f"[details: {summary}]"
+        )
+
+    # The process ran and answered, but not with MCP. 0.1.0 reported this as "Could not
+    # start MCP server ... the command failed to start", which is a wrong diagnosis of a
+    # process that started perfectly well — the same collapsing this slice exists to end.
+    return (
+        f"MCP server failed at the {STAGE_HANDSHAKE} stage: the process started but did "
+        "not speak MCP.\n"
+        f"  command: {name}\n"
+        "It produced output the MCP handshake could not parse. Check that this command "
+        "is an MCP server, and not a wrapper that prints to stdout. "
+        f"[details: {summary}]"
+    )
+
+
+def _handshake_timeout_message(command: str, timeout_seconds: float) -> str:
+    return (
+        f"MCP server failed at the {STAGE_HANDSHAKE} stage: the process started but did "
+        f"not complete the MCP handshake within {timeout_seconds:.0f}s.\n"
+        f"  command: {_command_label(command)}\n"
+        "The process was alive and had not answered. Launchers that fetch on first use "
+        "(npx, uvx) can spend the whole window downloading the package. Retry once the "
+        "download is warm, or raise --timeout."
+    )
+
+
+def _is_spawn_failure(root: BaseException) -> bool:
+    """True when the OS refused to start the command at all."""
+    if isinstance(root, (FileNotFoundError, PermissionError, NotADirectoryError)):
+        return True
+    return isinstance(root, OSError) and root.errno in {errno.ENOENT, errno.EACCES, errno.ENOTDIR}
 
 
 async def _safe_list(session: Any, method_name: str, label: str, warnings: list[str]) -> Any:

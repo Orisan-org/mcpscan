@@ -40,6 +40,12 @@
 
 ### Fixed
 
+- Fixed stdio connector failures collapsing three different problems into
+  `Connection closed`. The message now names the stage — `spawn` (the command never
+  started), `handshake` (the process started and exited), `handshake` (the process
+  started and was still working at the timeout) — and echoes the failing command. A
+  process that starts and then fails to speak MCP is no longer reported as having
+  failed to start.
 - Fixed `Worst grade: A` being reported when zero servers were scanned. `worst_grade` is
   now `None` in JSON and renders as "not assessed (no server was scanned)". A grade over
   an empty result set asserts that something was assessed and found clean.

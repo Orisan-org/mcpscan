@@ -46,7 +46,10 @@ def test_stdio_timeout_message_is_clean() -> None:
     )
 
     assert result.exit_code == 3
-    assert "timed out after 2s" in result.output
+    # Slice G: the message must say which stage failed, and that the process was alive.
+    assert "handshake stage" in result.output
+    assert "did not complete the MCP handshake within 2s" in result.output
+    assert "slow_server.py" in result.output, "the failing command must be echoed"
     assert "TaskGroup" not in result.output
     assert "ExceptionGroup" not in result.output
 
@@ -80,10 +83,14 @@ def test_stdio_bad_process_error_unwraps_taskgroup() -> None:
     )
 
     assert result.exit_code == 3
-    # Human failure message names the command and the likely cause, and never leaks
-    # the raw TaskGroup/ExceptionGroup/"Connection closed" internals.
-    assert "Could not start MCP server" in result.output
-    assert "failed to start" in result.output
+    # Slice G: this process starts perfectly well and then fails to speak MCP. 0.1.0
+    # reported it as "the command failed to start", which was a wrong diagnosis of the
+    # wrong stage. The message must not claim a spawn failure here.
+    assert "handshake stage" in result.output
+    assert "started, then exited" in result.output
+    assert "never started" not in result.output, (
+        "this process starts perfectly well; 0.1.0 reported it as a spawn failure"
+    )
     assert "TaskGroup" not in result.output
     assert "ExceptionGroup" not in result.output
 
