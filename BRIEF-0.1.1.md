@@ -106,33 +106,77 @@ is gone.
 
 ## Bug 2 — `scan-config` does not inherit the parent environment · Tier C
 
-The README's own example config fails:
+> **CORRECTED 2026-08-09, after investigation. DID NOT REPRODUCE.** The stated cause is
+> not the mechanism, and the prescribed fix would have been a security regression. The
+> original text is preserved at the end of this section.
+
+**What was actually observed.** Nothing. On `36272d4` + slices A/B/D, with mcp 1.29.0:
 
 ```
-Servers: 1 total, 0 scanned, 1 failed, 0 skipped
-Worst grade: A
-Failures: filesystem: Failed to enumerate stdio MCP server: MCPError: Connection closed
+mcpscan scan-config <npx server, no env block>    -> 1 total, 1 scanned, 0 failed
+mcpscan scan-config <npx server, with env block>  -> 1 total, 1 scanned, 0 failed
 ```
 
-**Cause:** the child process receives only the config's `env` dict. With no `env`
-block, `npx` launches with no `PATH` and no `HOME` and dies immediately. Isolated by
-adding explicit `PATH`/`HOME` to the config `env`, which makes the identical config
-scan cleanly. `scan --command "npx ..."` works, so the bug is specific to the
-scan-config launch path.
+Both shapes scan cleanly, including the README's own `examples/sample-mcp.json`.
 
-**Impact:** every Claude Desktop, Claude Code, Cursor and Windsurf config in the wild
-uses `npx` or `uvx` with no `env` block. The flagship one-liner
-`uvx orisan-mcpscan scan-config ./mcp.json --yes` fails for essentially every user.
+**Why the stated cause cannot be the mechanism.** `stdio.py` passed
+`env=self.target.env or None`, and `stdio_client` substitutes its own default
+environment for `None`. That default is a safe subset of the parent environment — PATH,
+HOME, SHELL, TERM, USER, LOGNAME — so a config with no `env` block has always launched
+with a working PATH. And a config *with* an `env` block is merged over that default, not
+substituted for it. Verified in the SDK source at both **mcp 1.9.0** and **mcp 1.29.0**:
 
-**Fix:** inherit `os.environ` and overlay the config's `env` on top (config wins on
-conflict). **Preserve the redaction invariant**: env values must stay out of all
-output. Inherited values must be redacted on the same path as config-supplied ones —
-do not let the fix open a leak.
+```python
+env = (
+    {**get_default_environment(), **server.env}
+    if server.env is not None
+    else get_default_environment()
+)
+```
 
-**Test:** an integration test that launches a stdio server through a command
-requiring `PATH` resolution, from a config with no `env` block.
+So the behaviour is the same across the whole range 0.1.0 could have resolved. Whatever
+produced `MCPError: Connection closed` on 2026-08-04, it was not "the child process
+receives only the config's `env` dict". Plausible alternatives not investigated: an npx
+cold-start exceeding the timeout, or a `node` runtime that was not on the inherited PATH
+on that machine. **The reproduction in this brief should be re-run on the machine where
+it was seen before this bug is closed or reopened.**
+
+**Why the prescribed fix was not implemented.** "Inherit `os.environ` and overlay the
+config's `env` on top" would forward every variable the operator has exported —
+`AWS_SECRET_ACCESS_KEY`, `GITHUB_TOKEN`, CI secrets — into a stdio server that mcpscan
+is executing *because it might be malicious*. The redaction invariant would still hold,
+since redaction governs the report; the leak would be to the scanned process, which no
+amount of output redaction addresses. The SDK's allowlist is the correct design.
+
+**What did ship.** The child environment is now computed by mcpscan
+(`connectors/stdio.child_environment`) rather than left to whichever SDK version got
+resolved: the same safe allowlist, config values overlaid on top, config winning on
+conflict, and full `os.environ` explicitly withheld. This changes no behaviour today. It
+means the behaviour is mcpscan's decision and mcpscan's test, which is bug 3's lesson
+applied before it costs anything. The regression test the original entry asked for
+exists, plus one asserting a planted parent secret reaches neither the report nor the
+child process.
 
 ---
+
+### Superseded original write-up
+
+> **Cause:** the child process receives only the config's `env` dict. With no `env`
+> block, `npx` launches with no `PATH` and no `HOME` and dies immediately.
+>
+> **Fix:** inherit `os.environ` and overlay the config's `env` on top (config wins on
+> conflict).
+
+Two errors, recorded so they are not repeated:
+
+1. **A cause was asserted from a symptom without reading the code path it names.** The
+   symptom (`Connection closed`) was real; the mechanism was inferred, not observed, and
+   the inference was wrong. Isolating by "adding explicit `PATH`/`HOME` made it work"
+   does not distinguish "PATH was missing" from "PATH was present but something else was
+   also fixed by restarting".
+2. **The fix was specified in terms of a mechanism rather than an outcome**, so it
+   smuggled in a security decision — full environment inheritance into an untrusted
+   child — that nobody would have approved if it had been stated as one.
 
 ## Bug 2b — a grade is reported when nothing was scanned · Tier B
 
@@ -194,8 +238,10 @@ are byte-identical in verdict. Unconfirmed sources are deliberately *not* identi
 those; see the corrected bug 1 above before changing this line.
 
 **Slice C — bugs 2 and 2b, scan-config.** Tier C. Acceptance: the README's own example
-config scans cleanly with no `env` block, redaction still holds under a test that
-plants a secret in the inherited environment, and zero-scanned reports no grade.
+config scans cleanly with no `env` block (it already did — see the corrected bug 2),
+redaction still holds under a test that plants a secret in the inherited environment,
+the child environment is mcpscan's own decision rather than the SDK's default, and
+zero-scanned reports no grade and exits non-zero.
 
 **Slice D — bugs 3 and 4, packaging and metadata.** Tier A. Pin `mcp[cli]>=1.0.0,<2`
 and stop there; do not attempt the 2.0 API. Acceptance: slice A's test passes, the 14

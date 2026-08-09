@@ -143,7 +143,7 @@ mcpscan scan --command "…" --output sarif --out report.sarif   # SARIF 2.1.0 f
 | --- | --- |
 | `0` | Scan completed; no finding met the severity threshold |
 | `1` | Scan completed; at least one finding met the threshold |
-| `2` | User input / CLI usage error |
+| `2` | User input / CLI usage error, including a `scan-config` run where nothing was scanned |
 | `3` | Connection or enumeration error |
 | `4` | Internal scanner error |
 

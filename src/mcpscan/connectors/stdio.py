@@ -41,7 +41,7 @@ class StdioConnector(Connector):
         params = StdioServerParameters(
             command=command,
             args=args,
-            env=self.target.env or None,
+            env=child_environment(self.target.env),
         )
         warnings: list[str] = []
 
@@ -73,6 +73,53 @@ class StdioConnector(Connector):
         except Exception as exc:
             command = self.target.raw or " ".join(self.target.command or [])
             raise EnumerationError(_stdio_failure_message(command, exc)) from exc
+
+
+#: Parent environment variables forwarded to a scanned server. Mirrors the mcp SDK's
+#: own allowlist. Everything else in os.environ is withheld deliberately -- mcpscan
+#: launches servers precisely because they might be malicious, and a scanned server has
+#: no business receiving the operator's cloud keys, tokens or CI secrets.
+INHERITED_ENV_VARS = (
+    (
+        "APPDATA",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "LOCALAPPDATA",
+        "PATH",
+        "PATHEXT",
+        "PROCESSOR_ARCHITECTURE",
+        "SYSTEMDRIVE",
+        "SYSTEMROOT",
+        "TEMP",
+        "USERNAME",
+        "USERPROFILE",
+    )
+    if sys.platform == "win32"
+    else ("HOME", "LOGNAME", "PATH", "SHELL", "TERM", "USER")
+)
+
+
+def child_environment(configured_env: dict[str, str] | None) -> dict[str, str]:
+    """The environment a scanned stdio server is launched with.
+
+    A safe subset of the parent environment, with any config-supplied values overlaid on
+    top (config wins on conflict). Computed here rather than left to the SDK's default:
+    0.1.0 passed ``env=self.target.env or None`` and relied on ``stdio_client`` to
+    substitute its own defaults for ``None``. That worked, but it made mcpscan's child
+    environment a property of whichever SDK version got resolved, which is the shape of
+    bug 3. It is now mcpscan's decision and mcpscan's test.
+
+    Note this is NOT ``os.environ``. Full inheritance would forward every secret the
+    operator happens to have exported into a server that mcpscan is running *because it
+    may be hostile*. Values are never echoed: reports carry env names and counts only.
+    """
+    env = {
+        name: value
+        for name in INHERITED_ENV_VARS
+        if (value := os.environ.get(name)) is not None and not value.startswith("()")
+    }
+    env.update(configured_env or {})
+    return env
 
 
 def _stdio_failure_message(command: str, exc: BaseException) -> str:

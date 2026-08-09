@@ -306,8 +306,13 @@ def scan_config_command(
                 f"Envelope pushed: {control_plane_url.rstrip('/')}/v1/envelopes run_id={run_id}"
             )
 
-        if not result.server_results and result.failures:
-            raise typer.Exit(EXIT_ENUMERATION)
+        # Nothing was assessed, so there is no clean result to report. Exit 0 on an
+        # empty run is the machine-readable form of the same false clean bill of health
+        # that bug 2b is about: a CI pipeline reads it as "these configs are fine".
+        # Failures are an enumeration problem; an all-skipped run is the operator's
+        # choices (declined consent, or an --only filter that matched nothing).
+        if not result.server_results:
+            raise typer.Exit(EXIT_ENUMERATION if result.failures else EXIT_USAGE)
         if any(
             severity_gte(effective_severity(finding), severity_threshold)
             for server in result.server_results

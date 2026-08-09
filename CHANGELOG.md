@@ -25,8 +25,22 @@
   instead of producing a scan that silently omits a transport. `version` and
   `list-checks` still work, so a broken environment can be reported.
 
+### Changed
+
+- `scan-config` now exits non-zero when zero servers were scanned, including when every
+  server was skipped by declined consent or an `--only` filter that matched nothing.
+  Exit 0 on an empty run is the machine-readable form of a false clean bill of health.
+  Failures exit `3`; an all-skipped run exits `2`.
+- The environment a stdio server is launched with is now computed by mcpscan
+  (`connectors/stdio.child_environment`) instead of being left to the mcp SDK's default:
+  the SDK's safe allowlist, with config values overlaid on top. No behaviour change
+  today; it stops the child environment being a property of whichever SDK is resolved.
+
 ### Fixed
 
+- Fixed `Worst grade: A` being reported when zero servers were scanned. `worst_grade` is
+  now `None` in JSON and renders as "not assessed (no server was scanned)". A grade over
+  an empty result set asserts that something was assessed and found clean.
 - Fixed the adjudicator ignoring a purpose it had already resolved and printed. A scan
   of the reference filesystem server showed `Purpose: filesystem (server_info)` in the
   header and then graded it `F`, escalating file write to `CRITICAL` for being

@@ -236,7 +236,10 @@ class ConfigScanSummary(BaseModel):
     servers_failed: int
     servers_skipped: int
     findings_total: int
-    worst_grade: str
+    #: None when zero servers were successfully scanned. A grade asserts that something
+    #: was assessed; printing one over an empty result set is a false clean bill of
+    #: health. See BRIEF-0.1.1.md bug 2b.
+    worst_grade: str | None = None
 
 
 class ConfigScanResult(BaseModel):
