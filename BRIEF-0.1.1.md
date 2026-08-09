@@ -10,13 +10,18 @@ reads the diff before merge, never auto-merged.**
 
 ---
 
-## Bug 1 — inferred purpose never reaches the adjudicator · Tier C · ACCURACY-CRITICAL
+## Bug 1 — the header displays a purpose the adjudicator rejected · Tier C · ACCURACY-CRITICAL
+
+> **CORRECTED 2026-08-09, after implementation.** The original write-up of this bug is
+> preserved at the bottom of this section. Its stated cause was wrong and its acceptance
+> criterion would have deleted a security control. Read the correction before touching
+> `adjudicate.py`. **Do not re-attempt the original fix.**
 
 The header prints the inferred purpose. The verdict column contradicts it on the same
 output. Same server, same scan, one flag apart:
 
 ```
-mcpscan scan --command "mcp-server-filesystem /tmp/safe-root"
+mcpscan scan --command "npx -y @modelcontextprotocol/server-filesystem /tmp/safe-root"
   Purpose: filesystem (server_info)
   Grade: F
   CRITICAL (was HIGH)  undeclared  MCP-010  write_file
@@ -30,22 +35,72 @@ mcpscan scan --command "..." --purpose-category filesystem
   exit 0
 ```
 
-**Cause:** the purpose resolved from `server_info` is used for display but not passed
-into adjudication, so the adjudicator sees no declared purpose and treats every
-capability as `undeclared`, escalating file write to CRITICAL on a server whose
-declared identity is a filesystem server.
+**Actual cause.** The resolved purpose *is* passed into adjudication —
+`scanner.scan_context` hands `purpose_profile` straight to `adjudicate_findings`. The F
+came from an explicit source gate in `adjudicate.py`: a capability could only take the
+expected-by-purpose branch when `category_source == PurposeSource.FLAG`. A purpose from
+any other source fell through to the undeclared branch and was escalated.
 
-**Impact:** the default invocation — the one every new user runs — grades the most
-widely deployed MCP server in the ecosystem an F with two criticals. This is the
-single most damaging possible failure for the accuracy claim the company rests on.
+That gate was added deliberately in `d00f8f7` to close a real hole, and is guarded by
+`tests/test_adjudicate_self_declaration.py`. The defect was never that the adjudicator
+ignored the purpose. **The defect was that the header displayed a purpose the
+adjudicator had deliberately rejected**, so the tool contradicted itself on one screen
+and the user could not tell which half to believe.
 
-**Fix:** thread the resolved purpose (whatever its source: flag, `--purpose`, or
-`server_info`) into the adjudication call. One value, one path.
+**Impact.** The default invocation — the one every new user runs — graded the most
+widely deployed MCP server in the ecosystem an F with two criticals.
 
-**Test that must exist afterwards:** scan a fixture whose `server_info.name` implies
-a category, with and without the explicit flag, and assert the two runs produce
-**identical** verdicts, adjusted severities and grade. That equivalence is the
-invariant; anything less lets the two paths drift apart again.
+**Fix as shipped.** The operator's own command line is a purpose signal a server cannot
+forge, so `PurposeSource.INVOCATION` ranks with `FLAG` and the reference server reaches
+`B` on the bare default invocation. `SERVER_INFO` and `CONFIG` still may not downgrade;
+they only stop mcpscan escalating a capability it has itself just called expected, which
+is the self-contradiction above. Governed by the trust invariant now stated at the top
+of `adjudicate.py`:
+
+> **Any purpose source may ESCALATE a severity. Only an operator-supplied purpose may
+> DOWNGRADE one.**
+
+`OPERATOR_PURPOSE_SOURCES` and the source gate are on the force-flag list. Every future
+change to either is Tier C.
+
+**Test that must exist afterwards:** the equivalence between the two *operator-supplied*
+paths — invocation-inferred and explicitly flagged — asserted on verdicts, adjusted
+severities and grade. Plus its opposite: the deliberate non-equivalence of an
+unconfirmed purpose, asserted rather than left implicit, so no future session collapses
+it. Both live in `tests/test_purpose_adjudication_equivalence.py`.
+
+---
+
+### Superseded original write-up, and why it was wrong
+
+The original entry read:
+
+> **Cause:** the purpose resolved from `server_info` is used for display but not passed
+> into adjudication, so the adjudicator sees no declared purpose and treats every
+> capability as `undeclared`.
+>
+> **Fix:** thread the resolved purpose (whatever its source: flag, `--purpose`, or
+> `server_info`) into the adjudication call. One value, one path.
+>
+> **Acceptance:** the inferred and explicit paths are byte-identical in verdict.
+
+Two errors, recorded so they are not repeated:
+
+1. **The stated cause was not the cause.** The purpose was already threaded through. An
+   implementer taking the brief at its word would have gone looking for a missing
+   argument, not found one, and either declared the bug unreproducible or forced the
+   equivalence some other way.
+2. **The acceptance criterion would have deleted a security control.** "Byte-identical
+   regardless of source" means adjudication trusts `server_info` exactly as much as the
+   operator. A malicious server would then declare itself a filesystem server and
+   downgrade its own file-write finding to `INFO` — precisely the lying-server hole
+   `d00f8f7` closed, reopened by a criterion written to fix an accuracy complaint.
+
+The general lesson: **an acceptance criterion phrased as "make these two outputs
+identical" is dangerous when the two inputs differ in trust.** Sameness of output is
+only a valid goal where the provenance is the same. Where it differs, the difference in
+output *is* the control, and a test asserting sameness is a test asserting the control
+is gone.
 
 ---
 
@@ -134,7 +189,9 @@ output pasted in the PR.
 
 **Slice B — bug 1, adjudication.** Tier C. Fix, add the equivalence test, human reads
 the diff. Acceptance: default scan of the reference filesystem server grades B, not F,
-and the inferred and explicit paths are byte-identical in verdict.
+and the two **operator-supplied** paths — invocation-inferred and explicitly flagged —
+are byte-identical in verdict. Unconfirmed sources are deliberately *not* identical to
+those; see the corrected bug 1 above before changing this line.
 
 **Slice C — bugs 2 and 2b, scan-config.** Tier C. Acceptance: the README's own example
 config scans cleanly with no `env` block, redaction still holds under a test that
@@ -170,6 +227,27 @@ widen the pin in `pyproject.toml` or the bounds in `src/mcpscan/sdk_compat.py` u
 that harness is green on both.
 
 ---
+
+## Candidate checks for a later slice
+
+Not scheduled. Logged so they are not rediscovered from scratch. Both are governed by
+the trust invariant: they raise suspicion, they never lower a floor.
+
+**Purpose disagreement between sources.** When the operator's invocation infers one
+category and the server's `server_info` infers another, the operator's currently wins
+silently. A server whose command line says `server-filesystem` while it describes itself
+as a shell execution tool — or the reverse — is worth surfacing on its own. It is weak
+evidence of a mislabelled or repurposed package. Under the invariant this can only ever
+*add* a finding or escalate one; it must never be allowed to resolve a disagreement in
+the direction that lowers a severity. Surfaced during slice B, deliberately not built
+there.
+
+**Filesystem scope is not assessed.** `examples/sample-mcp.json` hands
+`@modelcontextprotocol/server-filesystem` the path `/`, and nothing in the report says
+so. The tools it exposes are the same whether it is scoped to `/tmp/safe` or the whole
+disk, so every capability check reads identically while the actual blast radius differs
+enormously. The scope lives in the invocation arguments, which mcpscan already parses
+for purpose inference. Escalation-only, per the invariant.
 
 ## Standing rules for this work
 

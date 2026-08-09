@@ -21,39 +21,41 @@ uvx orisan-mcpscan scan-config sample-mcp.json --yes
 
 The first run downloads the two sample servers via `npx` (~30s cold); after that it is seconds.
 
-Real output — the risky server, which is handed broad filesystem access, grades **F**:
+Real output — the risky server, which is handed the whole filesystem, grades **D**:
 
 ```text
 Servers: 2 total, 2 scanned, 0 failed, 0 skipped
-Worst grade: F
+Worst grade: D
 
 notes-memory
   Transport: stdio
-  Purpose: memory_store (server_info)
+  Purpose: memory_store (config)
   Grade: A
   No findings.
 
 risky-filesystem
   Transport: stdio
-  Purpose: filesystem (server_info)
-  Grade: F
-┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ SEVERITY            ┃ VERDICT    ┃ ID      ┃ TARGET              ┃ FINDING                                        ┃
-┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ CRITICAL (was HIGH) │ undeclared │ MCP-010 │ edit_file           │ Tool 'edit_file' appears to expose file write  │
-│ CRITICAL (was HIGH) │ undeclared │ MCP-010 │ write_file          │ Tool 'write_file' appears to expose file write │
-│ HIGH                │ unexpected │ MCP-010 │ get_file_info       │ Tool 'get_file_info' appears to expose read    │
-│ HIGH                │ unexpected │ MCP-010 │ read_file           │ Tool 'read_file' appears to expose file read   │
-│ HIGH                │ unexpected │ MCP-010 │ read_multiple_files │ Tool 'read_multiple_files' exposes file read   │
-└─────────────────────┴────────────┴─────────┴─────────────────────┴────────────────────────────────────────────────┘
+  Purpose: filesystem (config)
+  Grade: D
+┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ SEVERITY ┃ VERDICT              ┃ ID      ┃ TARGET              ┃ FINDING                                         ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ HIGH     │ expected_unconfirmed │ MCP-010 │ edit_file           │ Tool 'edit_file' appears to expose file write   │
+│ HIGH     │ expected_unconfirmed │ MCP-010 │ get_file_info       │ Tool 'get_file_info' appears to expose read     │
+│ HIGH     │ expected_unconfirmed │ MCP-010 │ read_file           │ Tool 'read_file' appears to expose file read    │
+│ HIGH     │ expected_unconfirmed │ MCP-010 │ read_multiple_files │ Tool 'read_multiple_files' exposes file read    │
+│ HIGH     │ expected_unconfirmed │ MCP-010 │ write_file          │ Tool 'write_file' appears to expose file write  │
+└──────────┴──────────────────────┴─────────┴─────────────────────┴─────────────────────────────────────────────────┘
 
 Privacy: payload_stored=false for all findings
 ```
 
 How to read it:
 
-- **`CRITICAL (was HIGH)`** — the write tools are escalated from their base HIGH to CRITICAL. The number after "was" is always the original severity, so you can see exactly what context changed and why.
-- **`undeclared` vs `unexpected`** — `write_file`/`edit_file` are `undeclared`: the server's stated purpose never mentioned writing files, so unannounced write access is treated as worse. The read tools are `unexpected`: outside the declared purpose but at least visible in it. Nothing is hidden or suppressed — every finding is shown, escalated or not.
+- **`Purpose: filesystem (config)`** — mcpscan worked out what the server is *for* from the config entry, and says where that came from. What follows depends on that source.
+- **`expected_unconfirmed`** — file read and write are exactly what a filesystem server is for, so they are not treated as hidden capability. But you did not confirm that purpose: the config line could have been copy-pasted from the server's own README. So mcpscan holds severity at **HIGH** rather than either escalating it or waving it through. Confirm with `--purpose-category filesystem` and these drop to `INFO (was HIGH)`.
+- **Severity is never lowered by anything the scanned server had a hand in saying.** Raising it is open to any source; lowering it requires you. That one rule is why the same tool can be both quiet on a legitimate server and loud on a lying one.
+- Nothing is hidden or suppressed — every finding is shown, escalated, held, or annotated.
 - The benign `notes-memory` server grades **A** with no findings, so a clean server looks clean.
 
 ## What it does, and what it does not do
@@ -157,15 +159,24 @@ mcpscan scan --command "…" --output sarif --out report.sarif   # SARIF 2.1.0 f
 
 mcpscan never suppresses a finding. It labels each with a deterministic contextual verdict and keeps both original and adjusted severity when they differ:
 
-- `expected_by_purpose` — inherent to an operator-supplied purpose; downgrade-eligible (e.g. `INFO (was HIGH)`).
-- `expected_by_self_declaration` — inherent to a purpose the *server* claims for itself. Severity is left exactly as the check set it: not escalated, and not lowered.
+- `expected_by_purpose` — inherent to a purpose **you** supplied; downgrade-eligible (e.g. `INFO (was HIGH)`).
+- `expected_unconfirmed` — inherent to a purpose mcpscan inferred but you did not confirm. Severity is left exactly as the check set it: not escalated, and not lowered.
 - `unexpected` — outside the purpose category, but mentioned in declared text.
 - `undeclared` — outside the purpose category and not mentioned; treated as worse (e.g. `CRITICAL (was HIGH)`).
 - `unadjudicated` — no purpose was available.
 
-Purpose comes from `--purpose "…"` / `--purpose-category filesystem` (`flag`), or from the command line or URL you supplied (`invocation`), or from the server's own metadata (`server_info`). Ambiguous text resolves to `unknown`.
+The one rule behind all of it: **any purpose source may raise a severity; only a purpose you supplied may lower one.** Raising needs no trust — the worst a hostile source achieves by escalating is making its own findings look worse. Lowering is a claim that a dangerous capability is fine, so it has to come from outside the thing being scanned.
 
-The first two are written by you and a server cannot forge them, so they may downgrade a finding. `server_info` cannot: a server that names itself `filesystem-helper` must not be able to make its own file-write capability look routine. Confirm a self-declared purpose with `--purpose-category` if you want the downgrade. Taxonomy in [docs/PURPOSE_TAXONOMY.md](docs/PURPOSE_TAXONOMY.md).
+| Purpose source | Where it comes from | May lower a severity? |
+| --- | --- | --- |
+| `flag` | `--purpose` / `--purpose-category` | Yes |
+| `invocation` | the command line or URL you typed | Yes |
+| `config` | a command line or URL read from an MCP client config file | No |
+| `server_info` | the server's own name and instructions | No |
+
+`config` is excluded on purpose even though it usually *is* your intent: install snippets get copy-pasted out of server-authored documentation, so the same string can be the server talking. `server_info` is the server talking outright — one that names itself `filesystem-helper` must not be able to make its own file-write capability look routine.
+
+Confirm an inferred purpose with `--purpose-category` when you want the downgrade. Taxonomy in [docs/PURPOSE_TAXONOMY.md](docs/PURPOSE_TAXONOMY.md).
 
 ## What mcpscan checks
 

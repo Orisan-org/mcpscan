@@ -14,14 +14,54 @@ from mcpscan.utils.severity import increase_severity
 
 DOWNGRADE_ELIGIBLE = {"MCP-010"}
 
-#: Purpose sources the operator controls. Only these may lower a severity.
+# =============================================================================
+# THE ADJUDICATION TRUST INVARIANT
+#
+#   Any purpose source may ESCALATE a severity.
+#   Only an operator-supplied purpose may DOWNGRADE one.
+#
+# The asymmetry is the whole design. Escalation needs no trust, because the worst a
+# hostile source achieves by escalating is making its own findings look worse. A
+# downgrade is a claim that a dangerous capability is fine, so it may only come from
+# someone outside the system under test.
+#
+# OPERATOR_PURPOSE_SOURCES below IS that trust boundary. It, and the source gate in
+# _adjudicate_finding, are on the force-flag list: every future change to either is
+# Tier C and needs human security review, regardless of green tests. Adding a source to
+# this set is a decision about who is allowed to lower a severity. Do not add one to
+# make a test pass.
+#
+# History: d00f8f7 closed the lying-server hole; BRIEF-0.1.1.md bug 1 is the correction
+# to a proposed fix that would have reopened it. tests/test_adjudicate_self_declaration.py
+# and tests/test_purpose_adjudication_equivalence.py hold both edges.
+# =============================================================================
+
+#: Purpose sources the operator controls. ONLY THESE MAY LOWER A SEVERITY.
 #:
-#: FLAG is --purpose / --purpose-category. INVOCATION is the command line or URL the
-#: operator typed, which a server cannot forge. SERVER_INFO is deliberately absent: a
-#: server describing itself is attacker-controlled input, and letting it downgrade its
-#: own findings is the lying-server hole closed in d00f8f7. See
-#: tests/test_adjudicate_self_declaration.py.
+#: FLAG is --purpose / --purpose-category. INVOCATION is a command line or URL the
+#: operator typed at the CLI, which a server cannot forge.
+#:
+#: Deliberately absent, and both may still escalate:
+#:   CONFIG       a command line read from an MCP client config file. It presents as
+#:                operator intent, but install snippets are copy-pasted out of
+#:                server-authored documentation, so the server may have written it.
+#:   SERVER_INFO  the server describing itself. Attacker-controlled outright.
 OPERATOR_PURPOSE_SOURCES = {PurposeSource.FLAG, PurposeSource.INVOCATION}
+
+
+def may_downgrade(profile: PurposeProfile) -> bool:
+    """Half of the invariant: only an operator-supplied purpose may lower a severity."""
+    return profile.category_source in OPERATOR_PURPOSE_SOURCES
+
+
+def may_escalate(profile: PurposeProfile) -> bool:
+    """The other half: any purpose source may raise one.
+
+    Always True. It exists so the invariant is legible at the call site rather than
+    implied by the absence of a check, and so that anyone tempted to gate escalation on
+    provenance has to delete a function that says why not to.
+    """
+    return True
 
 
 def adjudicate_findings(findings: list[Finding], profile: PurposeProfile) -> list[Finding]:
@@ -45,7 +85,7 @@ def _adjudicate_finding(finding: Finding, profile: PurposeProfile) -> Finding:
         )
 
     if finding.capability in profile.expected_capabilities:
-        if profile.category_source in OPERATOR_PURPOSE_SOURCES:
+        if may_downgrade(profile):
             if _downgrade_eligible(finding, profile):
                 return _updated(
                     finding,
@@ -62,21 +102,22 @@ def _adjudicate_finding(finding: Finding, profile: PurposeProfile) -> Finding:
                 f"Capability {finding.capability.value} is inherent to declared purpose '{profile.category.value}', but this check is not downgrade-eligible.",
             )
 
-        # The purpose came from the server's own account of itself. That is enough to
-        # stop mcpscan escalating a capability it has just called expected — the header
-        # and the verdict column must not contradict each other — but it is not enough
-        # to lower anything. Severity stays exactly where the check put it.
+        # An unconfirmed purpose (CONFIG or SERVER_INFO). Enough to stop mcpscan
+        # escalating a capability it has just called expected — the header and the
+        # verdict column must not contradict each other — and not enough to lower
+        # anything. Severity stays exactly where the check put it.
         return _updated(
             finding,
             original,
             original,
-            ContextualVerdict.EXPECTED_BY_SELF_DECLARATION,
-            f"Capability {finding.capability.value} matches the purpose '{profile.category.value}' "
-            "that this server declares about itself. Self-declared purpose is not "
-            "operator-confirmed, so severity is unchanged. Pass --purpose-category "
-            f"{profile.category.value} to confirm it.",
+            ContextualVerdict.EXPECTED_UNCONFIRMED,
+            f"Capability {finding.capability.value} matches the purpose "
+            f"'{profile.category.value}', but that purpose came from "
+            f"{_source_description(profile.category_source)}, not from you. Severity is "
+            f"unchanged. Pass --purpose-category {profile.category.value} to confirm it.",
         )
 
+    # Escalation path. Open to every source: see the trust invariant above.
     verdict = ContextualVerdict.UNEXPECTED
     reasoning = (
         f"Capability {finding.capability.value} is outside the expected set for "
@@ -84,13 +125,21 @@ def _adjudicate_finding(finding: Finding, profile: PurposeProfile) -> Finding:
     )
     if not _capability_mentioned(finding.capability, profile.declared_text):
         verdict = ContextualVerdict.UNDECLARED
-        adjusted = increase_severity(original)
+        adjusted = increase_severity(original) if may_escalate(profile) else adjusted
         reasoning = (
             f"Capability {finding.capability.value} is neither expected for "
             f"'{profile.category.value}' nor mentioned anywhere in the declared text. "
             "Possible hidden capability."
         )
     return _updated(finding, original, adjusted, verdict, reasoning)
+
+
+def _source_description(source: PurposeSource) -> str:
+    if source == PurposeSource.CONFIG:
+        return "an MCP client config file, which may have been copied from the server's own docs"
+    if source == PurposeSource.SERVER_INFO:
+        return "the server's own description of itself"
+    return source.value
 
 
 def _downgrade_eligible(finding: Finding, profile: PurposeProfile) -> bool:

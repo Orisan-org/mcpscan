@@ -42,23 +42,43 @@ class PurposeCategory(str, Enum):
     UNKNOWN = "unknown"
 
 
+class TargetOrigin(str, Enum):
+    """How mcpscan came to be pointed at this target.
+
+    CLI means the operator typed it on the command line. CONFIG means it was read out
+    of an MCP client config file. The strings can be identical; the provenance is not.
+    Install snippets are routinely copy-pasted from server-authored documentation, so a
+    config command line can be server-influenced input wearing operator clothes.
+    """
+
+    CLI = "cli"
+    CONFIG = "config"
+
+
 class PurposeSource(str, Enum):
     """Where a purpose came from, which decides how far it may be trusted.
 
-    FLAG and INVOCATION are operator-supplied: the person running the scan chose the
-    words. A server cannot forge either. SERVER_INFO is the server describing itself,
-    which is attacker-controlled input and may not be used to lower a severity.
+    Operator-supplied (may downgrade):
+      FLAG        --purpose / --purpose-category, typed by the operator.
+      INVOCATION  the command line or URL the operator typed. A server cannot forge it.
+
+    Not operator-supplied (may never downgrade):
+      CONFIG      a command line or URL read from an MCP client config file. Reads as
+                  operator intent but may have been copy-pasted from the server's own
+                  install instructions.
+      SERVER_INFO the server describing itself. Straightforwardly attacker-controlled.
     """
 
     FLAG = "flag"
     INVOCATION = "invocation"
+    CONFIG = "config"
     SERVER_INFO = "server_info"
     UNKNOWN = "unknown"
 
 
 class ContextualVerdict(str, Enum):
     EXPECTED_BY_PURPOSE = "expected_by_purpose"
-    EXPECTED_BY_SELF_DECLARATION = "expected_by_self_declaration"
+    EXPECTED_UNCONFIRMED = "expected_unconfirmed"
     UNEXPECTED = "unexpected"
     UNDECLARED = "undeclared"
     UNADJUDICATED = "unadjudicated"
@@ -68,6 +88,7 @@ class ScanTarget(BaseModel):
     raw: str | None = None
     kind: TargetKind
     transport: Transport
+    origin: TargetOrigin = TargetOrigin.CLI
     command: list[str] | None = None
     url: str | None = None
     headers: dict[str, str] = Field(default_factory=dict)

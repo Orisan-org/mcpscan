@@ -15,6 +15,7 @@ from mcpscan.models import (
     ScanTarget,
     SkippedConfiguredServer,
     TargetKind,
+    TargetOrigin,
     Transport,
 )
 from mcpscan.reporters.json_reporter import render_json
@@ -119,11 +120,19 @@ async def scan_mcp_configs(
 
 
 def _target_for_server(server: ConfiguredServer) -> ScanTarget:
+    """Build a scan target from a config entry.
+
+    ``origin=CONFIG`` is load-bearing, not bookkeeping. It is what stops a command line
+    read out of a config file from being treated as operator intent and downgrading a
+    finding: the snippet may have been copy-pasted from the server's own install docs.
+    See the trust invariant in adjudicate.py.
+    """
     if server.transport == Transport.STDIO:
         return ScanTarget(
             raw=_redacted_command(server),
             kind=TargetKind.COMMAND,
             transport=Transport.STDIO,
+            origin=TargetOrigin.CONFIG,
             command=server.command,
             env=server.env,
         )
@@ -131,6 +140,7 @@ def _target_for_server(server: ConfiguredServer) -> ScanTarget:
         raw=server.url,
         kind=TargetKind.URL,
         transport=Transport.HTTP,
+        origin=TargetOrigin.CONFIG,
         url=server.url,
         headers=server.headers,
     )

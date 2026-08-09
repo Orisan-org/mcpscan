@@ -22,6 +22,12 @@ notice that the operator's own command line is a purpose signal a server cannot 
 severity — it may only stop mcpscan escalating a capability it has itself just called
 expected, which is the self-contradiction in the bug report.
 
+`PurposeSource.CONFIG` is the same command line arriving from an MCP client config file
+rather than the operator's keyboard. Same string, different provenance: install snippets
+get copy-pasted out of server-authored documentation, so it may not lower a severity
+either. Under the trust invariant (any source may escalate, only operator-supplied may
+downgrade) it sits with SERVER_INFO.
+
 Two invariants are locked here, and they pull in opposite directions on purpose:
 
 1. operator invocation == explicit flag, byte for byte (drift between the two paths is
@@ -47,6 +53,7 @@ from mcpscan.models import (
     ServerInfo,
     Severity,
     TargetKind,
+    TargetOrigin,
     Transport,
 )
 from mcpscan.scanner import scan_context
@@ -203,7 +210,7 @@ def test_self_declared_purpose_stops_escalation_but_never_lowers() -> None:
 
     assert result.counts["critical"] == 0, "no escalation on a capability called expected"
     for finding in result.findings:
-        assert finding.contextual_verdict == ContextualVerdict.EXPECTED_BY_SELF_DECLARATION
+        assert finding.contextual_verdict == ContextualVerdict.EXPECTED_UNCONFIRMED
         assert finding.adjusted_severity == finding.original_severity
         assert finding.adjusted_severity != Severity.INFO
         assert _RANK[finding.adjusted_severity] >= _RANK[finding.original_severity]
@@ -266,6 +273,127 @@ def test_opaque_invocation_and_silent_server_stay_unadjudicated() -> None:
     assert result.purpose_profile.category_source == PurposeSource.UNKNOWN
     for finding in result.findings:
         assert finding.contextual_verdict == ContextualVerdict.UNADJUDICATED
+
+
+# ------------------------------------------- provenance: same string, different weight
+
+
+def _config_filesystem_context() -> ScanContext:
+    """The reference command line, but read out of an MCP client config file.
+
+    Byte-identical to what the operator would have typed. The difference is that nobody
+    can show the operator wrote it: install snippets are copy-pasted from the server's
+    own README, so the server may have authored this string.
+    """
+    ctx = operator_named_filesystem_context()
+    ctx.target = ctx.target.model_copy(update={"origin": TargetOrigin.CONFIG})
+    return ctx
+
+
+def test_config_sourced_invocation_is_reported_as_config_not_operator_intent() -> None:
+    result = scan_context(_config_filesystem_context())
+
+    assert result.purpose_profile.category == PurposeCategory.FILESYSTEM
+    assert result.purpose_profile.category_source == PurposeSource.CONFIG
+
+
+def test_config_sourced_purpose_never_downgrades() -> None:
+    """The same string typed at the CLI downgrades; read from a config it must not.
+
+    This is the whole point of tracking origin. If ScanTarget.origin ever stops being
+    stamped in config_scanner._target_for_server, this test is what notices.
+    """
+    from_cli = scan_context(operator_named_filesystem_context())
+    from_config = scan_context(_config_filesystem_context())
+
+    assert from_cli.grade == "B"
+    assert from_config.grade != "B", "a config-sourced purpose must not buy a downgrade"
+
+    for finding in from_config.findings:
+        assert finding.contextual_verdict == ContextualVerdict.EXPECTED_UNCONFIRMED
+        assert finding.adjusted_severity == finding.original_severity
+        assert finding.adjusted_severity != Severity.INFO
+
+
+def test_config_sourced_purpose_still_escalates_an_unexpected_capability() -> None:
+    """Any source may escalate. Withholding downgrade authority must not also withhold
+    the escalation that an undeclared capability earns."""
+    ctx = _config_filesystem_context()
+    ctx.tools = [
+        *ctx.tools,
+        ExposedTool(
+            name="run_shell",
+            description="Run a shell command.",
+            input_schema={
+                "type": "object",
+                "properties": {"command": {"type": "string", "description": "Shell command."}},
+            },
+        ),
+    ]
+
+    result = scan_context(ctx)
+
+    assert result.purpose_profile.category_source == PurposeSource.CONFIG
+    injection = [finding for finding in result.findings if finding.id == "MCP-030"]
+    assert injection, "expected a command injection finding"
+    for finding in injection:
+        assert finding.contextual_verdict == ContextualVerdict.UNDECLARED
+        assert _RANK[finding.adjusted_severity] > _RANK[finding.original_severity], (
+            "escalation is open to every purpose source, config included"
+        )
+
+
+def test_operator_confirmation_restores_the_downgrade_for_a_config_target() -> None:
+    """The escape hatch the verdict reasoning tells the operator about must work."""
+    result = scan_context(_config_filesystem_context(), purpose_category=PurposeCategory.FILESYSTEM)
+
+    assert result.purpose_profile.category_source == PurposeSource.FLAG
+    assert result.grade == "B"
+
+
+# ------------------------------------------------------ guarding the declared_text line
+
+
+def test_python_interpreter_in_the_command_does_not_neutralise_mcp_030_escalation() -> None:
+    """Regression guard for a blind spot that was avoided by construction, not by test.
+
+    `_invocation_text` is fed to category inference only, never to `declared_text`. If
+    someone "simplifies" that by folding the invocation into declared_text, the word
+    `python` in an interpreter path matches the `code_eval` capability keywords, every
+    stdio server launched via python reads as having declared code execution, and
+    MCP-030 quietly stops escalating across the whole tool.
+
+    Nothing about this failure is visible in a diff. It shows up here.
+    """
+    ctx = ScanContext(
+        target=ScanTarget(
+            kind=TargetKind.COMMAND,
+            transport=Transport.STDIO,
+            command=["python", "/opt/tools/notes_server.py"],
+        ),
+        server=ServerInfo(name="notes"),
+        tools=[
+            ExposedTool(
+                name="run_script",
+                description="Execute a user-provided script body.",
+                input_schema={
+                    "type": "object",
+                    "properties": {"script": {"type": "string", "description": "Script body."}},
+                },
+            )
+        ],
+    )
+
+    result = scan_context(ctx, purpose_category=PurposeCategory.FILESYSTEM)
+
+    assert "python" not in result.purpose_profile.declared_text.lower(), (
+        "the invocation must not leak into declared_text; see purpose._invocation_text"
+    )
+    injection = [finding for finding in result.findings if finding.id == "MCP-030"]
+    assert injection, "expected a command injection finding"
+    for finding in injection:
+        assert finding.contextual_verdict == ContextualVerdict.UNDECLARED
+        assert _RANK[finding.adjusted_severity] > _RANK[finding.original_severity]
 
 
 # ------------------------------------------------------------------------ end to end

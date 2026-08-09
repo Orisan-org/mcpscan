@@ -12,6 +12,7 @@ from mcpscan.models import (
     PurposeProfile,
     PurposeSource,
     ScanContext,
+    TargetOrigin,
 )
 
 
@@ -91,11 +92,16 @@ def build_purpose_profile(
     elif (invocation_category := infer_purpose_category(invocation_text)) != (
         PurposeCategory.UNKNOWN
     ):
-        # The operator typed this target. A server cannot forge the command line or URL
-        # it was launched from, so this ranks with --purpose, above the server's own
-        # account of itself.
+        # The target text, ranked above the server's own account of itself. How far it
+        # is trusted depends on where it came from: typed on the command line it is
+        # operator intent, read out of a config file it is only probably operator
+        # intent, because install snippets get copy-pasted from the server's own docs.
         category = invocation_category
-        source = PurposeSource.INVOCATION
+        source = (
+            PurposeSource.CONFIG
+            if ctx.target.origin == TargetOrigin.CONFIG
+            else PurposeSource.INVOCATION
+        )
     elif server_text:
         category = infer_purpose_category(server_text)
         source = (

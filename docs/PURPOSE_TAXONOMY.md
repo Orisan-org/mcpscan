@@ -43,20 +43,32 @@ hits. A tie or zero hits resolves to `unknown`.
 Purpose is resolved from the first of these that yields a category, and the
 source is reported alongside it:
 
-| Source | Where it comes from | May lower a severity? |
-| --- | --- | --- |
-| `flag` | `--purpose` / `--purpose-category` | Yes |
-| `invocation` | the stdio command line or remote URL the operator supplied | Yes |
-| `server_info` | the server's own `name` / `instructions` | **No** |
-| `unknown` | nothing matched | n/a |
+| Source | Where it comes from | May escalate? | May downgrade? |
+| --- | --- | --- | --- |
+| `flag` | `--purpose` / `--purpose-category` | Yes | Yes |
+| `invocation` | the stdio command line or remote URL typed at the CLI | Yes | Yes |
+| `config` | the same, but read from an MCP client config file | Yes | **No** |
+| `server_info` | the server's own `name` / `instructions` | Yes | **No** |
+| `unknown` | nothing matched | n/a | n/a |
 
-The split is a trust boundary, not a ranking of accuracy. `flag` and
-`invocation` are both written by the operator, and a server cannot forge either.
-`server_info` is attacker-controlled: a malicious server can name itself
-`filesystem-helper` to make its own file-write capability look routine. A
-self-declared purpose therefore only stops `mcpscan` escalating a capability it
-has already called expected — it never downgrades one. Confirm a self-declared
-purpose with `--purpose-category` if you want the downgrade.
+The governing invariant: **any purpose source may escalate a severity; only an
+operator-supplied purpose may downgrade one.** Escalation needs no trust,
+because the worst a hostile source achieves by escalating is over-reporting its
+own findings. A downgrade asserts that a dangerous capability is fine, so it may
+only come from outside the system under test.
+
+`config` and `invocation` can be the identical string. The difference is
+provenance, not wording: install snippets are routinely copy-pasted from
+server-authored documentation, so a config command line may have been written by
+the server it is about. `server_info` is the server describing itself outright —
+a malicious server can name itself `filesystem-helper` to make its own
+file-write capability look routine.
+
+An unconfirmed purpose therefore earns exactly one thing: `mcpscan` stops
+escalating a capability it has already called expected, because a header that
+says `filesystem` next to a verdict column that says `undeclared` is a
+self-contradiction. It never lowers anything. Confirm the purpose with
+`--purpose-category` if you want the downgrade.
 
 Only the command line and URL feed `invocation`; they are never used for the
 capability-mention check that separates `unexpected` from `undeclared`. An

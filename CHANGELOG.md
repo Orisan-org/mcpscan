@@ -5,12 +5,17 @@
 ### Added
 
 - Added `PurposeSource.INVOCATION`: purpose inferred from the stdio command line or
-  remote URL the operator supplied. It ranks with `--purpose`, because the operator
-  wrote it and a server cannot forge it.
-- Added the `expected_by_self_declaration` contextual verdict, for a capability that
-  matches a purpose the server claims for itself. Severity is left exactly where the
-  check set it — not escalated, and not lowered.
-
+  remote URL typed at the CLI. It ranks with `--purpose`, because the operator wrote it
+  and a server cannot forge it.
+- Added `PurposeSource.CONFIG`: the same inference when the target came from an MCP
+  client config file. Reported separately and may not downgrade — install snippets are
+  copy-pasted from server-authored docs, so the string can be the server talking.
+- Added the `expected_unconfirmed` contextual verdict, for a capability matching a
+  purpose mcpscan inferred but the operator did not confirm. Severity is left exactly
+  where the check set it — not escalated, and not lowered.
+- Documented the adjudication trust invariant in `adjudicate.py`, the README and
+  `docs/PURPOSE_TAXONOMY.md`: any purpose source may escalate a severity, only an
+  operator-supplied one may downgrade it.
 - Added a wheel test harness (`tests/test_wheel_install.py`, `pytest -m wheel`) that
   builds the wheel, installs it into a clean unconstrained virtualenv, and runs the
   headline commands from the installed console script against real fixture servers.
