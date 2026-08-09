@@ -24,6 +24,10 @@
   pin is bypassed, `scan` and `scan-config` refuse and name the installed version
   instead of producing a scan that silently omits a transport. `version` and
   `list-checks` still work, so a broken environment can be reported.
+- Added a weekly wheel canary (`.github/workflows/wheel-canary.yml`) that re-runs the
+  wheel harness against a fresh, uncached dependency resolution and files an issue when
+  it breaks. Push-triggered CI cannot catch a break caused by the calendar rather than
+  by a commit.
 
 ### Fixed
 
@@ -46,8 +50,10 @@
 
 First public release, published to PyPI as `orisan-mcpscan` (the distribution name
 `mcpscan` is blocked by PyPI's name-similarity guard; the import package and CLI
-command remain `mcpscan`). Full test suite green on Python 3.11-3.14. All entries
-below shipped in 0.1.0.
+command remain `mcpscan`). Full test suite green on Python 3.11-3.14 **against the
+dependency set resolved on 2026-07-23** (mcp 1.x); 0.1.0 declared `mcp[cli]>=1.0.0`
+with no upper bound, and was not green against later resolutions. All entries below
+shipped in 0.1.0.
 
 ### Added
 
