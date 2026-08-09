@@ -38,8 +38,42 @@ Current categories:
 ## How inference works
 
 `mcpscan` counts keyword hits per category and picks the category with the most
-hits. A tie or zero hits resolves to `unknown`. Explicit CLI flags take
-precedence over server metadata.
+hits. A tie or zero hits resolves to `unknown`.
+
+Purpose is resolved from the first of these that yields a category, and the
+source is reported alongside it:
+
+| Source | Where it comes from | May escalate? | May downgrade? |
+| --- | --- | --- | --- |
+| `flag` | `--purpose` / `--purpose-category` | Yes | Yes |
+| `invocation` | the stdio command line or remote URL typed at the CLI | Yes | Yes |
+| `config` | the same, but read from an MCP client config file | Yes | **No** |
+| `server_info` | the server's own `name` / `instructions` | Yes | **No** |
+| `unknown` | nothing matched | n/a | n/a |
+
+The governing invariant: **any purpose source may escalate a severity; only an
+operator-supplied purpose may downgrade one.** Escalation needs no trust,
+because the worst a hostile source achieves by escalating is over-reporting its
+own findings. A downgrade asserts that a dangerous capability is fine, so it may
+only come from outside the system under test.
+
+`config` and `invocation` can be the identical string. The difference is
+provenance, not wording: install snippets are routinely copy-pasted from
+server-authored documentation, so a config command line may have been written by
+the server it is about. `server_info` is the server describing itself outright —
+a malicious server can name itself `filesystem-helper` to make its own
+file-write capability look routine.
+
+An unconfirmed purpose therefore earns exactly one thing: `mcpscan` stops
+escalating a capability it has already called expected, because a header that
+says `filesystem` next to a verdict column that says `undeclared` is a
+self-contradiction. It never lowers anything. Confirm the purpose with
+`--purpose-category` if you want the downgrade.
+
+Only the command line and URL feed `invocation`; they are never used for the
+capability-mention check that separates `unexpected` from `undeclared`. An
+interpreter path such as `python server.py` would otherwise read as a mention of
+code execution.
 
 ## Proposing changes
 

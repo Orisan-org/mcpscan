@@ -4,6 +4,18 @@
 
 ### Added
 
+- Added `PurposeSource.INVOCATION`: purpose inferred from the stdio command line or
+  remote URL typed at the CLI. It ranks with `--purpose`, because the operator wrote it
+  and a server cannot forge it.
+- Added `PurposeSource.CONFIG`: the same inference when the target came from an MCP
+  client config file. Reported separately and may not downgrade — install snippets are
+  copy-pasted from server-authored docs, so the string can be the server talking.
+- Added the `expected_unconfirmed` contextual verdict, for a capability matching a
+  purpose mcpscan inferred but the operator did not confirm. Severity is left exactly
+  where the check set it — not escalated, and not lowered.
+- Documented the adjudication trust invariant in `adjudicate.py`, the README and
+  `docs/PURPOSE_TAXONOMY.md`: any purpose source may escalate a severity, only an
+  operator-supplied one may downgrade it.
 - Added a wheel test harness (`tests/test_wheel_install.py`, `pytest -m wheel`) that
   builds the wheel, installs it into a clean unconstrained virtualenv, and runs the
   headline commands from the installed console script against real fixture servers.
@@ -15,6 +27,13 @@
 
 ### Fixed
 
+- Fixed the adjudicator ignoring a purpose it had already resolved and printed. A scan
+  of the reference filesystem server showed `Purpose: filesystem (server_info)` in the
+  header and then graded it `F`, escalating file write to `CRITICAL` for being
+  "undeclared". Downgrades required `PurposeSource.FLAG`, so any other source fell
+  through to the undeclared branch. The default invocation now grades that server `B`,
+  identically to `--purpose-category filesystem`. Self-declared purpose still cannot
+  lower a severity.
 - Fixed remote scanning being dead on every fresh install. The distribution declared
   `mcp[cli]>=1.0.0` with no upper bound; PyPI resolved that to mcp 2.0.0, which renamed
   `streamablehttp_client` and removed `mcp.server.fastmcp` with no aliases. Now pinned

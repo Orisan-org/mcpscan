@@ -12,6 +12,7 @@ from mcpscan.models import (
     PurposeProfile,
     PurposeSource,
     ScanContext,
+    TargetOrigin,
 )
 
 
@@ -78,6 +79,7 @@ def build_purpose_profile(
     purpose_text: str | None = None,
 ) -> PurposeProfile:
     flag_text = (purpose_text or "").strip()
+    invocation_text = _invocation_text(ctx)
     server_text = _server_declared_text(ctx)
     declared_text = "\n".join(piece for piece in (flag_text, server_text) if piece)
 
@@ -87,6 +89,19 @@ def build_purpose_profile(
     elif flag_text:
         category = infer_purpose_category(flag_text)
         source = PurposeSource.FLAG
+    elif (invocation_category := infer_purpose_category(invocation_text)) != (
+        PurposeCategory.UNKNOWN
+    ):
+        # The target text, ranked above the server's own account of itself. How far it
+        # is trusted depends on where it came from: typed on the command line it is
+        # operator intent, read out of a config file it is only probably operator
+        # intent, because install snippets get copy-pasted from the server's own docs.
+        category = invocation_category
+        source = (
+            PurposeSource.CONFIG
+            if ctx.target.origin == TargetOrigin.CONFIG
+            else PurposeSource.INVOCATION
+        )
     elif server_text:
         category = infer_purpose_category(server_text)
         source = (
@@ -132,3 +147,19 @@ def _server_declared_text(ctx: ScanContext) -> str:
     return "\n".join(
         piece for piece in (ctx.server.name or "", ctx.server.instructions or "") if piece.strip()
     )
+
+
+def _invocation_text(ctx: ScanContext) -> str:
+    """The target as the operator wrote it: the stdio command line, or the remote URL.
+
+    Deliberately kept out of ``declared_text``. This text is only ever used to infer a
+    category. Feeding it to the capability-mention check as well would mean an
+    interpreter path like ``python server.py`` reads as a mention of code execution and
+    silently stops MCP-030 escalating on every stdio scan.
+    """
+    pieces = []
+    if ctx.target.command:
+        pieces.append(" ".join(ctx.target.command))
+    if ctx.target.url:
+        pieces.append(ctx.target.url)
+    return "\n".join(piece for piece in pieces if piece.strip())
