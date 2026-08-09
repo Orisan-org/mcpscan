@@ -14,6 +14,15 @@ from mcpscan.utils.severity import increase_severity
 
 DOWNGRADE_ELIGIBLE = {"MCP-010"}
 
+#: Purpose sources the operator controls. Only these may lower a severity.
+#:
+#: FLAG is --purpose / --purpose-category. INVOCATION is the command line or URL the
+#: operator typed, which a server cannot forge. SERVER_INFO is deliberately absent: a
+#: server describing itself is attacker-controlled input, and letting it downgrade its
+#: own findings is the lying-server hole closed in d00f8f7. See
+#: tests/test_adjudicate_self_declaration.py.
+OPERATOR_PURPOSE_SOURCES = {PurposeSource.FLAG, PurposeSource.INVOCATION}
+
 
 def adjudicate_findings(findings: list[Finding], profile: PurposeProfile) -> list[Finding]:
     return [_adjudicate_finding(finding, profile) for finding in findings]
@@ -35,24 +44,37 @@ def _adjudicate_finding(finding: Finding, profile: PurposeProfile) -> Finding:
             "No declared purpose available; pass --purpose or --purpose-category to enable contextual adjudication.",
         )
 
-    if (
-        finding.capability in profile.expected_capabilities
-        and profile.category_source == PurposeSource.FLAG
-    ):
-        if _downgrade_eligible(finding, profile):
+    if finding.capability in profile.expected_capabilities:
+        if profile.category_source in OPERATOR_PURPOSE_SOURCES:
+            if _downgrade_eligible(finding, profile):
+                return _updated(
+                    finding,
+                    original,
+                    Severity.INFO,
+                    ContextualVerdict.EXPECTED_BY_PURPOSE,
+                    f"Capability {finding.capability.value} is inherent to declared purpose '{profile.category.value}'. Reported for completeness.",
+                )
             return _updated(
                 finding,
                 original,
-                Severity.INFO,
+                adjusted,
                 ContextualVerdict.EXPECTED_BY_PURPOSE,
-                f"Capability {finding.capability.value} is inherent to declared purpose '{profile.category.value}'. Reported for completeness.",
+                f"Capability {finding.capability.value} is inherent to declared purpose '{profile.category.value}', but this check is not downgrade-eligible.",
             )
+
+        # The purpose came from the server's own account of itself. That is enough to
+        # stop mcpscan escalating a capability it has just called expected — the header
+        # and the verdict column must not contradict each other — but it is not enough
+        # to lower anything. Severity stays exactly where the check put it.
         return _updated(
             finding,
             original,
-            adjusted,
-            ContextualVerdict.EXPECTED_BY_PURPOSE,
-            f"Capability {finding.capability.value} is inherent to declared purpose '{profile.category.value}', but this check is not downgrade-eligible.",
+            original,
+            ContextualVerdict.EXPECTED_BY_SELF_DECLARATION,
+            f"Capability {finding.capability.value} matches the purpose '{profile.category.value}' "
+            "that this server declares about itself. Self-declared purpose is not "
+            "operator-confirmed, so severity is unchanged. Pass --purpose-category "
+            f"{profile.category.value} to confirm it.",
         )
 
     verdict = ContextualVerdict.UNEXPECTED

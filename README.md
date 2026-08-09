@@ -157,12 +157,15 @@ mcpscan scan --command "…" --output sarif --out report.sarif   # SARIF 2.1.0 f
 
 mcpscan never suppresses a finding. It labels each with a deterministic contextual verdict and keeps both original and adjusted severity when they differ:
 
-- `expected_by_purpose` — inherent to the declared purpose; downgrade-eligible (e.g. `INFO (was HIGH)`).
+- `expected_by_purpose` — inherent to an operator-supplied purpose; downgrade-eligible (e.g. `INFO (was HIGH)`).
+- `expected_by_self_declaration` — inherent to a purpose the *server* claims for itself. Severity is left exactly as the check set it: not escalated, and not lowered.
 - `unexpected` — outside the purpose category, but mentioned in declared text.
 - `undeclared` — outside the purpose category and not mentioned; treated as worse (e.g. `CRITICAL (was HIGH)`).
-- `unadjudicated` — no declared purpose was available.
+- `unadjudicated` — no purpose was available.
 
-Provide purpose with `--purpose "…"` or `--purpose-category filesystem`; otherwise server metadata is used, and ambiguous text resolves to `unknown`. Taxonomy in [docs/PURPOSE_TAXONOMY.md](docs/PURPOSE_TAXONOMY.md).
+Purpose comes from `--purpose "…"` / `--purpose-category filesystem` (`flag`), or from the command line or URL you supplied (`invocation`), or from the server's own metadata (`server_info`). Ambiguous text resolves to `unknown`.
+
+The first two are written by you and a server cannot forge them, so they may downgrade a finding. `server_info` cannot: a server that names itself `filesystem-helper` must not be able to make its own file-write capability look routine. Confirm a self-declared purpose with `--purpose-category` if you want the downgrade. Taxonomy in [docs/PURPOSE_TAXONOMY.md](docs/PURPOSE_TAXONOMY.md).
 
 ## What mcpscan checks
 

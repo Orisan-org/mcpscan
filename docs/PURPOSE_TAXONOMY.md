@@ -38,8 +38,30 @@ Current categories:
 ## How inference works
 
 `mcpscan` counts keyword hits per category and picks the category with the most
-hits. A tie or zero hits resolves to `unknown`. Explicit CLI flags take
-precedence over server metadata.
+hits. A tie or zero hits resolves to `unknown`.
+
+Purpose is resolved from the first of these that yields a category, and the
+source is reported alongside it:
+
+| Source | Where it comes from | May lower a severity? |
+| --- | --- | --- |
+| `flag` | `--purpose` / `--purpose-category` | Yes |
+| `invocation` | the stdio command line or remote URL the operator supplied | Yes |
+| `server_info` | the server's own `name` / `instructions` | **No** |
+| `unknown` | nothing matched | n/a |
+
+The split is a trust boundary, not a ranking of accuracy. `flag` and
+`invocation` are both written by the operator, and a server cannot forge either.
+`server_info` is attacker-controlled: a malicious server can name itself
+`filesystem-helper` to make its own file-write capability look routine. A
+self-declared purpose therefore only stops `mcpscan` escalating a capability it
+has already called expected — it never downgrades one. Confirm a self-declared
+purpose with `--purpose-category` if you want the downgrade.
+
+Only the command line and URL feed `invocation`; they are never used for the
+capability-mention check that separates `unexpected` from `undeclared`. An
+interpreter path such as `python server.py` would otherwise read as a mention of
+code execution.
 
 ## Proposing changes
 

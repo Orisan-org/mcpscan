@@ -43,13 +43,22 @@ class PurposeCategory(str, Enum):
 
 
 class PurposeSource(str, Enum):
+    """Where a purpose came from, which decides how far it may be trusted.
+
+    FLAG and INVOCATION are operator-supplied: the person running the scan chose the
+    words. A server cannot forge either. SERVER_INFO is the server describing itself,
+    which is attacker-controlled input and may not be used to lower a severity.
+    """
+
     FLAG = "flag"
+    INVOCATION = "invocation"
     SERVER_INFO = "server_info"
     UNKNOWN = "unknown"
 
 
 class ContextualVerdict(str, Enum):
     EXPECTED_BY_PURPOSE = "expected_by_purpose"
+    EXPECTED_BY_SELF_DECLARATION = "expected_by_self_declaration"
     UNEXPECTED = "unexpected"
     UNDECLARED = "undeclared"
     UNADJUDICATED = "unadjudicated"

@@ -4,6 +4,13 @@
 
 ### Added
 
+- Added `PurposeSource.INVOCATION`: purpose inferred from the stdio command line or
+  remote URL the operator supplied. It ranks with `--purpose`, because the operator
+  wrote it and a server cannot forge it.
+- Added the `expected_by_self_declaration` contextual verdict, for a capability that
+  matches a purpose the server claims for itself. Severity is left exactly where the
+  check set it — not escalated, and not lowered.
+
 - Added a wheel test harness (`tests/test_wheel_install.py`, `pytest -m wheel`) that
   builds the wheel, installs it into a clean unconstrained virtualenv, and runs the
   headline commands from the installed console script against real fixture servers.
@@ -15,6 +22,13 @@
 
 ### Fixed
 
+- Fixed the adjudicator ignoring a purpose it had already resolved and printed. A scan
+  of the reference filesystem server showed `Purpose: filesystem (server_info)` in the
+  header and then graded it `F`, escalating file write to `CRITICAL` for being
+  "undeclared". Downgrades required `PurposeSource.FLAG`, so any other source fell
+  through to the undeclared branch. The default invocation now grades that server `B`,
+  identically to `--purpose-category filesystem`. Self-declared purpose still cannot
+  lower a severity.
 - Fixed remote scanning being dead on every fresh install. The distribution declared
   `mcp[cli]>=1.0.0` with no upper bound; PyPI resolved that to mcp 2.0.0, which renamed
   `streamablehttp_client` and removed `mcp.server.fastmcp` with no aliases. Now pinned
