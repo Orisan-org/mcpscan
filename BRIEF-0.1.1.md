@@ -181,3 +181,29 @@ that harness is green on both.
   not the repo tree. That distinction is the entire lesson of bug 3.
 - Do not announce until the reproduction in this brief runs clean against the
   published artifact.
+
+- **A claim about the current behaviour of a system with unpinned inputs cannot be
+  verified by inspection.** Checking it once tells you what was true at that moment,
+  and the claim can go false afterwards without anything in the repo changing. Such a
+  claim must be one of exactly two kinds, and it must say which:
+
+  1. **Artifact-scoped.** Scoped to a pinned input set — "green against the dependency
+     set pinned in this release". Verified once at build time, and true of that
+     artifact permanently.
+  2. **Re-verified.** Backed by a named job that re-checks it on a schedule. The claim
+     names the job, so a reader can see when it last ran.
+
+  A bare `VERIFIED` with a date is insufficient for this class of claim: the date
+  records when it was true, not that it still is. `CLAIMS.md` rows must mark which kind
+  each claim is; a row that is neither is not shippable. (`CLAIMS.md` lives in the
+  orisan-site repo — marking its existing rows is work in that repo, not this one.)
+
+  **Worked example.** `CHANGELOG.md` said of 0.1.0: "Full test suite green on Python
+  3.11-3.14." True on 2026-07-23, false from a fresh install by 2026-08-09. Nothing in
+  the repo changed; the unpinned input (`mcp[cli]>=1.0.0`) resolved to a new major.
+  Written as artifact-scoped it would have stayed true. Written as re-verified it would
+  have gone red the week mcp 2.0.0 shipped. As written it was neither, and it quietly
+  became a false public claim.
+
+  For mcpscan, the re-verification job is `.github/workflows/wheel-canary.yml`, which
+  runs slice A's wheel harness weekly against a fresh, uncached resolution.

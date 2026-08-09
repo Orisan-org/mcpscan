@@ -1,0 +1,73 @@
+# Re-verification job for mcpscan's install-time claims. See the standing rule in
+# BRIEF-0.1.1.md: a claim about current behaviour of a system with unpinned inputs must
+# be either scoped to a pinned artifact or backed by a scheduled job. This is that job.
+#
+# Bug 3 took roughly six weeks to surface: mcp 2.0.0 shipped, nothing in the repo
+# changed, and remote scanning was dead on every fresh install the whole time. Push-
+# triggered CI cannot catch that, because there is no push. Only the calendar moves.
+#
+# What this catches: any dependency resolution inside the declared ranges that breaks
+# the built wheel — a new mcp 1.x, a transitive break, a yanked release, a fixture-side
+# regression on PyPI. Worst case it is one week stale instead of one release stale.
+#
+# What it does not catch: mcp 2.x, which pyproject pins out at `<2`. Coverage for the
+# 2.x resolution arrives with slice F, which extends the harness to a second wheel
+# environment.
+name: Wheel canary
+
+on:
+  schedule:
+    # 06:00 UTC every Monday.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  wheel-harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          # A cached resolution is last week's resolution. The freshness is the point.
+          enable-cache: false
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]"
+      - name: Run the wheel harness against a fresh resolution
+        env:
+          UV_NO_CACHE: "1"
+        run: pytest -m wheel -v
+
+      # A red scheduled run that only sends an email is how a break stays unnoticed for
+      # a month. File it, and do not open a second one while the first is still open.
+      - name: Open an issue if the canary broke
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Wheel canary failed: the built wheel no longer works on a fresh resolution"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          existing="$(gh issue list --state open --limit 100 --json number,title \
+            --jq "map(select(.title == env.TITLE)) | .[0].number // empty")"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still failing as of $RUN_URL"
+            exit 0
+          fi
+          {
+            printf 'The weekly wheel canary failed. The repo did not necessarily change '
+            printf -- '— a dependency resolution inside our declared ranges did.\n\n'
+            printf 'Run: %s\n\n' "$RUN_URL"
+            printf 'This job builds the wheel, installs it into a clean venv with no '
+            printf 'cache, and runs the headline commands from the installed console '
+            printf 'script. A failure here means the artifact users install is broken '
+            printf 'right now, even if push-triggered CI is green.\n\n'
+            printf 'See BRIEF-0.1.1.md bug 3 for the last time this class of defect shipped.\n'
+          } > issue-body.md
+          gh issue create --title "$TITLE" --body-file issue-body.md
