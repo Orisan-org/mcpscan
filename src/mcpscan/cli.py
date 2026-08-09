@@ -23,15 +23,20 @@ from mcpscan.reporters.sarif import render_sarif
 from mcpscan.reporters.terminal import render_config_terminal, render_terminal
 from mcpscan.scanner import scan_target
 from mcpscan.scoring import effective_severity
+from mcpscan.sdk_compat import mcp_sdk_problem
 from mcpscan.target import resolve_target
 from mcpscan.utils.severity import severity_gte
 
 app = typer.Typer(no_args_is_help=True, help="Local-first security scanner for MCP servers.")
 console = Console()
 
+#: Commands that talk to an MCP server, and so depend on the mcp SDK behaving as built.
+_SDK_DEPENDENT_COMMANDS = {"scan", "scan-config"}
+
 
 @app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     version_flag: Annotated[
         bool,
         typer.Option("--version", help="Show version and exit.", callback=None),
@@ -40,6 +45,16 @@ def main(
     if version_flag:
         console.print(__version__)
         raise typer.Exit(EXIT_OK)
+
+    # Fail before scanning, not partway through it. An mcp SDK outside the supported
+    # range does not degrade gracefully: it produces a scan that silently omits a
+    # transport. See BRIEF-0.1.1.md bug 3. `version` and `list-checks` stay usable on a
+    # broken install so the environment can still be reported.
+    if ctx.invoked_subcommand in _SDK_DEPENDENT_COMMANDS:
+        problem = mcp_sdk_problem()
+        if problem is not None:
+            typer.echo(f"Incompatible mcp SDK: {problem}", err=True)
+            raise typer.Exit(EXIT_INTERNAL)
 
 
 @app.command()

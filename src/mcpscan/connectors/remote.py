@@ -6,6 +6,7 @@ from mcpscan.connectors.base import Connector
 from mcpscan.errors import EnumerationError, unwrap_exception_group
 from mcpscan.models import ScanContext, ServerInfo, Transport
 from mcpscan.normalizer import normalize_prompts, normalize_resources, normalize_tools
+from mcpscan.sdk_compat import MCP_SDK_REQUIREMENT, mcp_sdk_description
 from mcpscan.utils.redact import redact_url_credentials
 
 
@@ -66,17 +67,27 @@ def _remote_client_factory(transport: Transport) -> Any:
 
             return sse_client
         except ImportError as exc:
-            raise EnumerationError(
-                "SSE remote transport is not available in the installed mcp SDK."
-            ) from exc
+            raise EnumerationError(_transport_import_failure("SSE")) from exc
     try:
         from mcp.client.streamable_http import streamablehttp_client
 
         return streamablehttp_client
     except ImportError as exc:
-        raise EnumerationError(
-            "Streamable HTTP transport is not available in the installed mcp SDK."
-        ) from exc
+        raise EnumerationError(_transport_import_failure("Streamable HTTP")) from exc
+
+
+def _transport_import_failure(transport_label: str) -> str:
+    """Say that the installation is broken, not that the transport does not exist.
+
+    0.1.0 reported these ImportErrors as "<transport> is not available in the installed
+    mcp SDK." — wording that reads as a capability gap and hid bug 3 in plain sight. The
+    installed version is named so the cause is attributable on sight.
+    """
+    return (
+        f"{transport_label} transport could not be imported from the installed mcp SDK "
+        f"({mcp_sdk_description()}). mcpscan requires mcp {MCP_SDK_REQUIREMENT}. "
+        "This is a broken installation, not an unsupported transport."
+    )
 
 
 async def _safe_list(session: Any, method_name: str, label: str, warnings: list[str]) -> Any:
