@@ -6,20 +6,31 @@ from mcpscan.models import (
     ScanTarget,
     ServerInfo,
     TargetKind,
+    TargetOrigin,
     Transport,
 )
 
 
 def command_target() -> ScanTarget:
+    """A CLI-invoked stdio target. Origin is explicit: it decides downgrade authority."""
     return ScanTarget(
-        kind=TargetKind.COMMAND, transport=Transport.STDIO, command=["python", "server.py"]
+        kind=TargetKind.COMMAND,
+        transport=Transport.STDIO,
+        origin=TargetOrigin.CLI,
+        command=["python", "server.py"],
     )
 
 
 def url_target(
     url: str = "https://example.com/mcp", headers: dict[str, str] | None = None
 ) -> ScanTarget:
-    return ScanTarget(kind=TargetKind.URL, transport=Transport.HTTP, url=url, headers=headers or {})
+    return ScanTarget(
+        kind=TargetKind.URL,
+        transport=Transport.HTTP,
+        origin=TargetOrigin.CLI,
+        url=url,
+        headers=headers or {},
+    )
 
 
 def benign_context() -> ScanContext:

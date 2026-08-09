@@ -121,6 +121,26 @@ adapting to 2.0 became slice F rather than a follow-up line.
 
 ---
 
+## Tier C review finding, fixed here
+
+Reviewing #28's trust boundary before merge surfaced one real defect that the tests did
+not catch, because every test happened to exercise the path that worked.
+
+`ScanTarget.origin` defaulted to `TargetOrigin.CLI`. `resolve_target` never stamped it —
+it relied on that default. So the boundary was **fail-open**: any future construction
+site that forgot to state provenance would silently receive operator trust and the
+ability to downgrade a finding. The one existing non-CLI path (`config_scanner`) stamps
+`CONFIG` explicitly, so nothing was wrong in practice; the failure mode was latent and
+would have arrived with the next code path.
+
+Now: the default is `CONFIG`, the *less* trusted value, and both CLI construction sites
+stamp `CLI` explicitly. A forgotten stamp loses downgrade authority instead of gaining
+it. `tests/test_target_origin_is_explicit.py` asserts both halves — that the default is
+the untrusted one, and that every `ScanTarget(` call site in `src/` is explicit.
+
+Flipping the default immediately failed three existing tests that had been relying on
+it, which is the evidence that it was load-bearing rather than cosmetic.
+
 ## Release status: NOT PUBLISHED
 
 Remaining before publish, in order:

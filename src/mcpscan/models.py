@@ -54,6 +54,11 @@ class TargetOrigin(str, Enum):
     CLI = "cli"
     CONFIG = "config"
 
+    # NOTE: ScanTarget.origin defaults to CONFIG, the *less* trusted of the two, and
+    # target.resolve_target stamps CLI explicitly. A construction site that forgets to
+    # stamp an origin therefore loses downgrade authority rather than gaining it.
+    # Defaulting to CLI would have been fail-open on a trust boundary.
+
 
 class PurposeSource(str, Enum):
     """Where a purpose came from, which decides how far it may be trusted.
@@ -88,7 +93,7 @@ class ScanTarget(BaseModel):
     raw: str | None = None
     kind: TargetKind
     transport: Transport
-    origin: TargetOrigin = TargetOrigin.CLI
+    origin: TargetOrigin = TargetOrigin.CONFIG
     command: list[str] | None = None
     url: str | None = None
     headers: dict[str, str] = Field(default_factory=dict)
