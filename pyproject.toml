@@ -63,9 +63,10 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["E501", "UP042", "SIM117"]
 
 [tool.pytest.ini_options]
-addopts = "-m 'not network'"
+addopts = "-m 'not network and not wheel'"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
   "network: tests that require external package downloads or network access",
+  "wheel: tests that build the wheel and install it into a clean venv (slow, needs PyPI). Run with `pytest -m wheel`; gated in CI by the wheel-harness job.",
 ]
