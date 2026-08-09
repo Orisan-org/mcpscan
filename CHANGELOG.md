@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 - 2026-08-09
+
+Correctness and honesty release. Remote scanning worked again from a fresh install,
+the adjudicator stopped contradicting its own header, and two entries in the build
+brief were corrected rather than implemented. Green against the dependency set pinned
+in this release (`mcp[cli]>=1.0.0,<2`); the `wheel-canary` workflow re-verifies that
+weekly against a fresh resolution.
 
 ### Added
 
@@ -29,8 +35,30 @@
   it breaks. Push-triggered CI cannot catch a break caused by the calendar rather than
   by a commit.
 
+### Changed
+
+- `scan-config` now exits non-zero when zero servers were scanned, including when every
+  server was skipped by declined consent or an `--only` filter that matched nothing.
+  Exit 0 on an empty run is the machine-readable form of a false clean bill of health.
+  Failures exit `3`; an all-skipped run exits `2`.
+- The environment a stdio server is launched with is now computed by mcpscan
+  (`connectors/stdio.child_environment`) instead of being left to the mcp SDK's default:
+  the SDK's safe allowlist, with config values overlaid on top, and the rest of
+  `os.environ` withheld from a process mcpscan runs because it may be hostile. No
+  behaviour change today; it stops the child environment being a property of whichever
+  SDK is resolved.
+
 ### Fixed
 
+- Fixed stdio connector failures collapsing three different problems into
+  `Connection closed`. The message now names the stage — `spawn` (the command never
+  started), `handshake` (the process started and exited), `handshake` (the process
+  started and was still working at the timeout) — and echoes the failing command. A
+  process that starts and then fails to speak MCP is no longer reported as having
+  failed to start.
+- Fixed `Worst grade: A` being reported when zero servers were scanned. `worst_grade` is
+  now `None` in JSON and renders as "not assessed (no server was scanned)". A grade over
+  an empty result set asserts that something was assessed and found clean.
 - Fixed the adjudicator ignoring a purpose it had already resolved and printed. A scan
   of the reference filesystem server showed `Purpose: filesystem (server_info)` in the
   header and then graded it `F`, escalating file write to `CRITICAL` for being

@@ -55,7 +55,7 @@ def render_config_terminal(result: ConfigScanResult, *, no_color: bool = False) 
         f"{result.summary.servers_failed} failed, "
         f"{result.summary.servers_skipped} skipped"
     )
-    console.print(f"Worst grade: {result.summary.worst_grade}")
+    console.print(f"Worst grade: {_worst_grade_label(result.summary.worst_grade)}")
     for server in result.server_results:
         console.print("")
         console.print(f"{server.name}")
@@ -101,3 +101,8 @@ def _severity_label(finding) -> str:
     if adjusted == finding.severity:
         return adjusted.value.upper()
     return f"{adjusted.value.upper()} (was {finding.severity.value.upper()})"
+
+
+def _worst_grade_label(worst_grade: str | None) -> str:
+    """Never render a grade for an empty result set. See BRIEF-0.1.1.md bug 2b."""
+    return worst_grade if worst_grade else "not assessed (no server was scanned)"

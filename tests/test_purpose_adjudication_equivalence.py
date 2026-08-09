@@ -101,6 +101,7 @@ def operator_named_filesystem_context() -> ScanContext:
         target=ScanTarget(
             kind=TargetKind.COMMAND,
             transport=Transport.STDIO,
+            origin=TargetOrigin.CLI,
             command=["npx", "-y", "@modelcontextprotocol/server-filesystem", "/tmp/safe-root"],
         ),
         server=ServerInfo(name="secure-filesystem-server", version="0.2.0"),
@@ -117,6 +118,7 @@ def self_declared_only_context() -> ScanContext:
         target=ScanTarget(
             kind=TargetKind.COMMAND,
             transport=Transport.STDIO,
+            origin=TargetOrigin.CLI,
             command=["./run-server", "--port", "0"],
         ),
         server=ServerInfo(
@@ -233,6 +235,7 @@ def test_invocation_inferred_purpose_never_downgrades_command_injection() -> Non
         target=ScanTarget(
             kind=TargetKind.COMMAND,
             transport=Transport.STDIO,
+            origin=TargetOrigin.CLI,
             command=["npx", "-y", "some-shell-command-terminal-server"],
         ),
         tools=[
@@ -369,6 +372,7 @@ def test_python_interpreter_in_the_command_does_not_neutralise_mcp_030_escalatio
         target=ScanTarget(
             kind=TargetKind.COMMAND,
             transport=Transport.STDIO,
+            origin=TargetOrigin.CLI,
             command=["python", "/opt/tools/notes_server.py"],
         ),
         server=ServerInfo(name="notes"),

@@ -10,6 +10,26 @@ reads the diff before merge, never auto-merged.**
 
 ---
 
+## How to read this brief
+
+This brief was written from outside the code, by observing behaviour. Black-box
+observation yields symptoms, never causes. Entries state the observation, the evidence,
+and the desired end state. They do not prescribe a mechanism. Where an entry names a
+cause, treat that as a hypothesis to falsify first.
+
+In a security tool, surprising behaviour is more likely a control than a defect. Verify
+intent before removing anything that stands in the way.
+
+An acceptance criterion of the form "make these two outputs identical" is dangerous when
+the inputs differ in trust. There, the difference in output is the control.
+
+*Written after three entries in this release proved the point: bug 1's stated cause was
+wrong and its acceptance criterion would have deleted a control; bug 2's stated cause was
+false and its prescribed fix would have leaked operator credentials into a scanned
+process; bug 3's cause was correct but its scope was understated.*
+
+---
+
 ## Bug 1 — the header displays a purpose the adjudicator rejected · Tier C · ACCURACY-CRITICAL
 
 > **CORRECTED 2026-08-09, after implementation.** The original write-up of this bug is
@@ -104,35 +124,78 @@ is gone.
 
 ---
 
-## Bug 2 — `scan-config` does not inherit the parent environment · Tier C
+## Bug 2 — `scan-config` does not inherit the parent environment · WITHDRAWN
 
-The README's own example config fails:
+> **WITHDRAWN 2026-08-09. Not reproducible, not fixed.** The observation was real and
+> transient. The cause stated below it was false. Recorded as withdrawn rather than
+> closed-as-fixed, because nothing was fixed: no code change stands between the failing
+> observation and the passing one. The original text is preserved at the end.
+
+**Evidence, in order.**
+
+1. On this tree with mcp 1.29.0, `scan-config` of an npx server scans cleanly both with
+   and without an `env` block, including the README's own `examples/sample-mcp.json`.
+2. The stated mechanism is not what the code does. `stdio_client` substitutes its own
+   default environment when `env` is `None`, and merges config `env` over that default
+   when it is not. Confirmed in the SDK source at both **mcp 1.9.0** and **mcp 1.29.0**,
+   which spans everything 0.1.0 could have resolved:
+
+```python
+env = (
+    {**get_default_environment(), **server.env}
+    if server.env is not None
+    else get_default_environment()
+)
+```
+
+3. Re-run by the reporter **in the original environment**, with no code change and no
+   `env` block: scans clean. The child process was probed directly and receives the
+   inherited variables intact:
 
 ```
-Servers: 1 total, 0 scanned, 1 failed, 0 skipped
-Worst grade: A
-Failures: filesystem: Failed to enumerate stdio MCP server: MCPError: Connection closed
+HOME=/root
+PATH=/home/claude/.npm-global/bin:/root/.local/bin:...:/usr/bin:/bin
+PWD=/tmp   SHELL=/bin/bash   TERM=linux
 ```
 
-**Cause:** the child process receives only the config's `env` dict. With no `env`
-block, `npx` launches with no `PATH` and no `HOME` and dies immediately. Isolated by
-adding explicit `PATH`/`HOME` to the config `env`, which makes the identical config
-scan cleanly. `scan --command "npx ..."` works, so the bug is specific to the
-scan-config launch path.
+**Conclusion.** `PATH` and `HOME` were present the whole time. The most likely cause of
+the original `MCPError: Connection closed` is `npx` fetching the package over the
+network inside the handshake window — a timeout wearing a connection error's clothes.
+That mis-signalling is a real defect, and it is now its own slice (slice G) rather than
+being folded in here.
 
-**Impact:** every Claude Desktop, Claude Code, Cursor and Windsurf config in the wild
-uses `npx` or `uvx` with no `env` block. The flagship one-liner
-`uvx orisan-mcpscan scan-config ./mcp.json --yes` fails for essentially every user.
+**What was kept, on its own merits.** `connectors/stdio.child_environment()` — the SDK's
+safe allowlist, config values overlaid on top, config winning on conflict, full
+`os.environ` explicitly withheld. It fixes nothing. It stops mcpscan's child environment
+being a property of whichever mcp SDK version got resolved, which is bug 3's shape, and
+it is now covered by mcpscan's own tests.
 
-**Fix:** inherit `os.environ` and overlay the config's `env` on top (config wins on
-conflict). **Preserve the redaction invariant**: env values must stay out of all
-output. Inherited values must be redacted on the same path as config-supplied ones —
-do not let the fix open a leak.
-
-**Test:** an integration test that launches a stdio server through a command
-requiring `PATH` resolution, from a config with no `env` block.
+**What was not implemented, and must not be.** "Inherit `os.environ`" would forward
+`AWS_SECRET_ACCESS_KEY`, `GITHUB_TOKEN` and every other exported secret into a stdio
+server mcpscan executes *because it might be hostile*. The entry anticipates a leak and
+guards the wrong one: redaction governs the report, but this leak is to the scanned
+process, which output redaction cannot touch.
 
 ---
+
+### Superseded original write-up
+
+> **Cause:** the child process receives only the config's `env` dict. With no `env`
+> block, `npx` launches with no `PATH` and no `HOME` and dies immediately.
+>
+> **Fix:** inherit `os.environ` and overlay the config's `env` on top (config wins on
+> conflict).
+
+Recorded so it is not repeated:
+
+1. **A cause was asserted from a symptom without reading the code path it names.** The
+   symptom was real; the mechanism was inferred, and the inference was wrong.
+2. **The isolation step did not isolate.** "Adding explicit `PATH`/`HOME` made it work"
+   does not distinguish *PATH was missing* from *PATH was fine and the retry succeeded
+   because the package had finished downloading*.
+3. **The fix was specified as a mechanism rather than an outcome**, so it smuggled in a
+   security decision — full environment inheritance into an untrusted child — that
+   nobody would have approved if it had been stated as one.
 
 ## Bug 2b — a grade is reported when nothing was scanned · Tier B
 
@@ -193,15 +256,25 @@ and the two **operator-supplied** paths — invocation-inferred and explicitly f
 are byte-identical in verdict. Unconfirmed sources are deliberately *not* identical to
 those; see the corrected bug 1 above before changing this line.
 
-**Slice C — bugs 2 and 2b, scan-config.** Tier C. Acceptance: the README's own example
-config scans cleanly with no `env` block, redaction still holds under a test that
-plants a secret in the inherited environment, and zero-scanned reports no grade.
+**Slice C — bug 2b, and bug 2 withdrawn.** Tier C. Bug 2 is withdrawn as not
+reproducible; `child_environment()` was kept as hardening on its own merits. Acceptance:
+redaction holds under a test that plants a secret in the inherited environment, the
+child environment is mcpscan's own decision rather than the SDK's default, and
+zero-scanned reports no grade and exits non-zero.
 
 **Slice D — bugs 3 and 4, packaging and metadata.** Tier A. Pin `mcp[cli]>=1.0.0,<2`
 and stop there; do not attempt the 2.0 API. Acceptance: slice A's test passes, the 14
 pre-existing failures on a fresh dev install clear (any that survive the pin are a
 separate defect and get named, not absorbed), and the repository URL resolves
 anonymously.
+
+**Slice G — connector failure messages name the stage.** Tier B. `Connection closed`
+does not distinguish a spawn failure from a handshake timeout from a process that
+started and died. That ambiguity produced a wrong diagnosis in this very release: bug 2
+was filed against environment handling on the strength of it. Report which stage failed
+and echo the command. Same family as the "transport is not available" wording fixed in
+slice D. Acceptance: the three failure modes produce three distinguishable messages,
+each naming the command, under test.
 
 **Slice E — release.** Bump to 0.1.1, re-verify every README claim against the built
 wheel rather than the repo, publish, then **re-run the full reproduction from this

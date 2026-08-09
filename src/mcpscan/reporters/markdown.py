@@ -123,7 +123,7 @@ def render_config_markdown(result: ConfigScanResult) -> str:
         f"- Servers failed: {result.summary.servers_failed}",
         f"- Servers skipped: {result.summary.servers_skipped}",
         f"- Findings total: {result.summary.findings_total}",
-        f"- Worst grade: {result.summary.worst_grade}",
+        f"- Worst grade: {result.summary.worst_grade or 'not assessed (no server was scanned)'}",
         "- Payload stored: false for all findings",
         "",
         "## Config Files",
