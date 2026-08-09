@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Added
+
+- Added a wheel test harness (`tests/test_wheel_install.py`, `pytest -m wheel`) that
+  builds the wheel, installs it into a clean unconstrained virtualenv, and runs the
+  headline commands from the installed console script against real fixture servers.
+  Every other test runs against the repo tree, which is why bug 3 shipped unseen.
+- Added an mcp SDK version guard (`src/mcpscan/sdk_compat.py`). When the dependency
+  pin is bypassed, `scan` and `scan-config` refuse and name the installed version
+  instead of producing a scan that silently omits a transport. `version` and
+  `list-checks` still work, so a broken environment can be reported.
+
+### Fixed
+
+- Fixed remote scanning being dead on every fresh install. The distribution declared
+  `mcp[cli]>=1.0.0` with no upper bound; PyPI resolved that to mcp 2.0.0, which renamed
+  `streamablehttp_client` and removed `mcp.server.fastmcp` with no aliases. Now pinned
+  to `mcp[cli]>=1.0.0,<2`. Adapting to the mcp 2.0 API is tracked separately.
+- Fixed transport import failures reporting as "`<transport>` is not available in the
+  installed mcp SDK", wording that read as a capability gap rather than a broken
+  install. The message now names the installed version and the supported range.
+
 ## 0.1.0 - 2026-07-23
 
 First public release, published to PyPI as `orisan-mcpscan` (the distribution name

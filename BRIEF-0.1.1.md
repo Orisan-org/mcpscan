@@ -140,12 +140,34 @@ and the inferred and explicit paths are byte-identical in verdict.
 config scans cleanly with no `env` block, redaction still holds under a test that
 plants a secret in the inherited environment, and zero-scanned reports no grade.
 
-**Slice D — bugs 3 and 4, packaging and metadata.** Tier A. Acceptance: slice A's test
-passes, and the repository URL resolves anonymously.
+**Slice D — bugs 3 and 4, packaging and metadata.** Tier A. Pin `mcp[cli]>=1.0.0,<2`
+and stop there; do not attempt the 2.0 API. Acceptance: slice A's test passes, the 14
+pre-existing failures on a fresh dev install clear (any that survive the pin are a
+separate defect and get named, not absorbed), and the repository URL resolves
+anonymously.
 
 **Slice E — release.** Bump to 0.1.1, re-verify every README claim against the built
 wheel rather than the repo, publish, then **re-run the full reproduction from this
 brief against the published package** before announcing anything.
+
+**Slice F — adapt to the mcp 2.0 API.** Tier B. Slice D's `<2` pin buys time; it does
+not resolve anything. The 2.0 surface is a real port with its own test surface, not a
+rename to chase:
+
+- `streamablehttp_client` became `streamable_http_client`.
+- **`mcp.server.fastmcp` was removed entirely**, replaced by `mcp.server.mcpserver`.
+  There is no alias for either. All of `tests/fixtures/*.py` build their servers on
+  `FastMCP`, so the fixture corpus is part of this port, not a downstream consequence
+  of it.
+- mcp 2.0 pulls a different dependency set (`httpx2`, `mcp-types`, `opentelemetry-api`),
+  so the port is an install-surface change as well as an API change.
+
+The work is a compatibility shim over both SDK generations, or a hard move to 2.0 with
+the floor raised — decide which, and say why. Either way the acceptance is the same:
+**slice A's wheel harness passes on both an mcp 1.x and an mcp 2.x resolution**, which
+means the harness gains a second wheel environment rather than trusting one. Do not
+widen the pin in `pyproject.toml` or the bounds in `src/mcpscan/sdk_compat.py` until
+that harness is green on both.
 
 ---
 
