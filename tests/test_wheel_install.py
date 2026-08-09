@@ -61,6 +61,10 @@ FIXTURES = ROOT / "tests" / "fixtures"
 # The fixture servers use mcp.server.fastmcp.FastMCP, removed in mcp 2.0.0.
 FIXTURE_SDK_SPEC = "mcp[cli]>=1.0.0,<2"
 
+#: Set by the readiness canary to move the wheel environment's SDK after install.
+#: Never set in ordinary runs.
+WHEEL_ENV_MCP_SPEC_VAR = "MCPSCAN_WHEEL_MCP_SPEC"
+
 SUBPROCESS_TIMEOUT = 180
 
 
@@ -216,6 +220,21 @@ def wheel_env(tmp_path_factory: pytest.TempPathFactory, wheel_path: Path) -> Pat
         timeout=SUBPROCESS_TIMEOUT,
     )
     assert install.returncode == 0, _fail(f"installing {wheel_path.name} failed", install)
+
+    # Hook for the mcp 2.x readiness canary (.github/workflows/mcp2-readiness-canary.yml).
+    # Unset in normal runs, so the default path stays a genuinely unconstrained
+    # resolution. When set, the SDK is moved afterwards and the harness reports whether
+    # the artifact works there. It is expected to FAIL until slice F lands.
+    override = os.environ.get(WHEEL_ENV_MCP_SPEC_VAR)
+    if override:
+        moved = subprocess.run(
+            [_uv(), "pip", "install", "--python", str(_exe(venv, "python")), override],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT,
+        )
+        assert moved.returncode == 0, _fail(f"moving the SDK to {override!r} failed", moved)
     return venv
 
 
@@ -260,10 +279,21 @@ def test_wheel_is_the_orisan_mcpscan_distribution(wheel_path: Path) -> None:
 
 
 def test_installed_console_script_reports_its_version(wheel_env: Path, workdir: Path) -> None:
+    """The installed artifact must report the version this repo declares.
+
+    Read from pyproject rather than hardcoded: a release bump that updated the source
+    but not the wheel is exactly what this harness exists to catch, and a literal here
+    would have to be edited in lockstep with the thing it is checking.
+    """
+    import tomllib
+
+    declared = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
     result = _mcpscan(["version"], wheel_env=wheel_env, workdir=workdir)
 
     assert result.returncode == 0, _fail("mcpscan version failed", result)
-    assert "0.1.0" in result.stdout, _fail("mcpscan version did not report 0.1.0", result)
+    assert declared in result.stdout, _fail(
+        f"installed wheel reports a different version than pyproject ({declared})", result
+    )
 
 
 def test_installed_console_script_lists_checks(wheel_env: Path, workdir: Path) -> None:

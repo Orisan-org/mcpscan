@@ -9,7 +9,9 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+import mcpscan
 from mcpscan.cli import _push_envelope, app
+from mcpscan.constants import EXIT_USAGE
 from mcpscan.errors import McpScanError
 
 runner = CliRunner()
@@ -78,7 +80,7 @@ def test_version_works() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert mcpscan.__version__ in result.output
 
 
 def test_module_entrypoint_help_works() -> None:
@@ -316,9 +318,14 @@ def test_scan_config_without_yes_can_decline_execution(tmp_path) -> None:
 
     result = runner.invoke(app, ["scan-config", str(config)], input="n\n")
 
-    assert result.exit_code == 0
+    # Behaviour change in slice C, deliberate: this used to exit 0. Declining consent
+    # still means nothing was assessed, and exit 0 is the machine-readable form of the
+    # false clean bill of health that BRIEF-0.1.1.md bug 2b is about. EXIT_USAGE rather
+    # than EXIT_ENUMERATION because nothing failed -- the operator chose this.
+    assert result.exit_code == EXIT_USAGE
     assert "Execute and scan?" in result.output
     assert "no consent" in result.output
+    assert "Worst grade: not assessed" in result.output
     assert not sentinel.exists()
 
 

@@ -154,9 +154,15 @@ def _redacted_command(server: ConfiguredServer) -> str:
     return command
 
 
-def _worst_grade(grades: list[str]) -> str:
+def _worst_grade(grades: list[str]) -> str | None:
+    """The worst grade across scanned servers, or None if nothing was scanned.
+
+    0.1.0 returned "A" for an empty list, so a run that scanned nothing and failed
+    everything still reported `Worst grade: A`. That is a claim that servers were
+    assessed and found clean, which is not true. See BRIEF-0.1.1.md bug 2b.
+    """
     if not grades:
-        return "A"
+        return None
     return max(grades, key=lambda grade: GRADE_ORDER.get(grade, 0))
 
 

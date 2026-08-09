@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from urllib.parse import urlparse
 
 from mcpscan.errors import TargetError
-from mcpscan.models import ScanTarget, TargetKind, Transport
+from mcpscan.models import ScanTarget, TargetKind, TargetOrigin, Transport
 
 
 def parse_headers(header_values: Iterable[str] | None) -> dict[str, str]:
@@ -50,6 +50,9 @@ def resolve_target(
             raw=command,
             kind=TargetKind.COMMAND,
             transport=Transport.STDIO,
+            # The operator typed this at the CLI. See the trust invariant in
+            # adjudicate.py: this is what makes an inferred purpose downgrade-capable.
+            origin=TargetOrigin.CLI,
             command=command_parts,
             headers={},
         )
@@ -75,6 +78,7 @@ def resolve_target(
         raw=target,
         kind=TargetKind.URL,
         transport=resolved_transport,
+        origin=TargetOrigin.CLI,
         url=target,
         headers=parsed_headers,
     )
