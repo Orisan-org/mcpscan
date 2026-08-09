@@ -23,3 +23,20 @@ jobs:
       - run: ruff check .
       - run: python -m compileall src
       - run: pytest
+
+  # Slice A of BRIEF-0.1.1.md. The `test` job above installs the repo tree with `-e`,
+  # so it never sees what a user installing the published wheel from PyPI actually
+  # resolves. That blind spot is how bug 3 shipped. This job builds the wheel, installs
+  # it into a clean venv with no constraints, and runs the README's headline commands
+  # from the installed console script.
+  wheel-harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v5
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]"
+      - run: pytest -m wheel -v
