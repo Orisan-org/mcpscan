@@ -108,6 +108,11 @@ adapting to 2.0 became slice F rather than a follow-up line.
 
 - `wheel-canary.yml` — weekly re-verification of the install-time claims. Bug 3 was
   invisible for roughly six weeks because nothing in the repo changed.
+- `mcp2-readiness-canary.yml` — the same harness against an mcp 2.x resolution,
+  advisory and expected to fail. It answers the question the wheel canary structurally
+  cannot: when does the pinned-out major become viable? Guarded by
+  `tests/test_readiness_canary_is_not_pinned.py`, because an advisory job quietly
+  constrained into the green is worse than no job.
 - `sdk_compat.py` — refuses to scan on an out-of-range SDK rather than degrading.
 - Slice G — connector failures name their stage. Bug 2's misdiagnosis was caused by
   `Connection closed` meaning three different things.
@@ -123,7 +128,8 @@ Remaining before publish, in order:
 1. **Merge the open stack.** #28 (slice B, Tier C) → #29 (slice C, Tier C) → #30
    (slice G) → this. All draft; all need a human on the diff.
 2. **Slice F is not done.** The `<2` pin buys time; mcpscan does not speak the mcp 2.0
-   API. The canary cannot see 2.x, so nothing currently reports when that changes.
+   API. The readiness canary now watches for the day it becomes viable; it currently
+   fails 3 of 6, all at mcpscan's own SDK guard, which is the correct "not ready".
 4. **Publish, then re-run the brief's reproduction against the published artifact**
    before announcing — including the bug 2 reproduction, which must be run in the
    environment where it was originally seen and is expected to pass.
