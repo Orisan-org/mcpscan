@@ -126,7 +126,7 @@ is gone.
 
 ## Bug 2 — `scan-config` does not inherit the parent environment · WITHDRAWN
 
-> **WITHDRAWN 2026-08-09. Not reproducible, not fixed.** The observation was real and
+> **WITHDRAWN 2026-08-09. CLOSED ON THE RECORD 2026-08-10. Not reproducible, not fixed.** The observation was real and
 > transient. The cause stated below it was false. Recorded as withdrawn rather than
 > closed-as-fixed, because nothing was fixed: no code change stands between the failing
 > observation and the passing one. The original text is preserved at the end.
@@ -157,6 +157,20 @@ HOME=/root
 PATH=/home/claude/.npm-global/bin:/root/.local/bin:...:/usr/bin:/bin
 PWD=/tmp   SHELL=/bin/bash   TERM=linux
 ```
+
+4. Re-run **against the published 0.1.1 artifact, on the original machine, in the same
+   shell, with the byte-identical failing config**:
+
+```
+mcpscan 0.1.1 from PyPI, clean venv, mcp==1.29.0
+HOME=/root, /home/claude/.npm-global/bin on PATH
+Servers: 1 total, 1 scanned, 0 failed, 0 skipped
+Purpose: filesystem (config)    Grade: D    exit 1
+```
+
+That closes the withdrawal on the record rather than only in reasoning. The config that
+failed on 2026-08-04 scans on 2026-08-10, in its own environment, with no code change
+that touches the mechanism the original entry named.
 
 **Conclusion.** `PATH` and `HOME` were present the whole time. The most likely cause of
 the original `MCPError: Connection closed` is `npx` fetching the package over the
