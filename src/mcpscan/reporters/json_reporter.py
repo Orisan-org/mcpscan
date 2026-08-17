@@ -27,6 +27,7 @@ def render_json(result: ScanResult) -> str:
         "tier": result.tier.value,
         "tier_description": TIER_DESCRIPTIONS[result.tier],
         "checks_not_run": result.checks_not_run,
+        "replayed_from": result.replayed_from,
         "scan": {
             "mcpscan_version": __version__,
             "checks_version": CHECKS_VERSION,

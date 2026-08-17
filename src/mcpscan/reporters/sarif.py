@@ -87,6 +87,7 @@ def _run(scans: list[tuple[str, ScanResult]]) -> dict:
             "toolExecutionNotifications": notifications,
             "properties": {
                 "evidence_tiers": tiers,
+                "replayed_from": [scan.replayed_from for _, scan in scans if scan.replayed_from],
                 "evidence_tier_descriptions": [TIER_DESCRIPTIONS[scan.tier] for _, scan in scans][
                     :1
                 ],

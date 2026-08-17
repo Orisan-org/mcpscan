@@ -34,7 +34,14 @@ def build_launch_surface(ctx: ScanContext) -> LaunchSurface:
     )
 
 
-def build_surface(ctx: ScanContext) -> SurfaceSnapshot:
+def build_surface(ctx: ScanContext, *, full: bool = False) -> SurfaceSnapshot:
+    """Hash-only by default; `full` also retains the text the checks need.
+
+    Hashes answer "did this change". They cannot answer "does this contain a
+    prompt injection", because you cannot pattern-match a digest. Replay needs
+    the text, which is why it is a separate, opt-in profile: a full snapshot
+    contains server-supplied content and is a different thing to hold on disk.
+    """
     return SurfaceSnapshot(
         surface_version=SURFACE_VERSION,
         launch=build_launch_surface(ctx),
@@ -43,6 +50,11 @@ def build_surface(ctx: ScanContext) -> SurfaceSnapshot:
                 name=tool.name,
                 description_sha256=_hash_text(tool.description),
                 schema_sha256=_hash_json(tool.input_schema),
+                **(
+                    {"description": tool.description, "input_schema": tool.input_schema}
+                    if full
+                    else {}
+                ),
             )
             for tool in sorted(ctx.tools, key=lambda item: item.name)
         ],
@@ -51,6 +63,15 @@ def build_surface(ctx: ScanContext) -> SurfaceSnapshot:
                 name=resource.name or resource.uri,
                 description_sha256=_hash_text(resource.description),
                 schema_sha256=None,
+                **(
+                    {
+                        "description": resource.description,
+                        "uri": resource.uri,
+                        "mime_type": resource.mime_type,
+                    }
+                    if full
+                    else {}
+                ),
             )
             for resource in sorted(ctx.resources, key=lambda item: item.name or item.uri)
         ],
@@ -59,6 +80,11 @@ def build_surface(ctx: ScanContext) -> SurfaceSnapshot:
                 name=prompt.name,
                 description_sha256=_hash_text(prompt.description),
                 schema_sha256=_hash_json(prompt.arguments),
+                **(
+                    {"description": prompt.description, "arguments": prompt.arguments}
+                    if full
+                    else {}
+                ),
             )
             for prompt in sorted(ctx.prompts, key=lambda item: item.name)
         ],

@@ -126,8 +126,8 @@ def test_an_unknown_snapshot_format_is_refused_not_guessed(tmp_path: Path) -> No
 def test_a_pre_launch_baseline_says_the_launch_was_not_compared() -> None:
     """Silence would be a claim about something never recorded."""
     old = snap(["uvx", "thing"])
-    old["surface"]["surface_version"] = 1
-    old["surface"].pop("launch", None)
+    old["body"]["surface"]["surface_version"] = 1
+    old["body"]["surface"].pop("launch", None)
     changes = compare_snapshots(old, snap(["uvx", "COMPLETELY-DIFFERENT"]))
     assert any("was NOT compared" in c.evidence for c in changes)
     assert all(c.severity.value == "info" for c in changes if "NOT compared" in c.evidence)
@@ -136,16 +136,29 @@ def test_a_pre_launch_baseline_says_the_launch_was_not_compared() -> None:
 # ------------------------------------------------------- the file itself
 
 
-def test_snapshots_are_byte_identical_for_an_unchanged_server() -> None:
-    """So they can be committed and diffed. No timestamp, deliberately."""
-    assert render_snapshot(snap(["uvx", "thing"])) == render_snapshot(snap(["uvx", "thing"]))
+def test_snapshot_bodies_are_byte_identical_for_an_unchanged_server() -> None:
+    """So they can be committed and diffed.
+
+    The BODY is timestamp-free, not the whole document: format 2 moved the
+    capture time into an envelope so a replay can state how old its evidence
+    is. Both properties hold at once because drift compares bodies.
+    """
+    from mcpscan.snapshot import canonical_body
+
+    assert canonical_body(snap(["uvx", "thing"])) == canonical_body(snap(["uvx", "thing"]))
+
+
+def test_the_envelope_carries_a_capture_time_and_the_body_does_not() -> None:
+    document = snap(["uvx", "thing"])
+    assert document["envelope"]["captured_at"]
+    assert "captured_at" not in json.dumps(document["body"])
 
 
 def test_a_snapshot_carries_the_ruleset_and_surface_versions() -> None:
     document = snap(["uvx", "thing"])
     assert document["snapshot_format"] == SNAPSHOT_FORMAT
-    assert document["surface_version"] == SURFACE_VERSION
-    assert len(document["ruleset_digest"]) == 64
+    assert document["body"]["surface_version"] == SURFACE_VERSION
+    assert len(document["body"]["ruleset_digest"]) == 64
 
 
 def test_write_is_atomic_under_a_kill(tmp_path: Path) -> None:
@@ -168,7 +181,7 @@ def test_write_is_atomic_under_a_kill(tmp_path: Path) -> None:
         "    return out\n"
         "s.render_snapshot = slow\n"
         "print('go', flush=True)\n"
-        f"write_snapshot(Path({str(path)!r}), {{'snapshot_format': 1, 'surface': {{}}, 'label': 'x'}})\n",
+        f"write_snapshot(Path({str(path)!r}), {{'snapshot_format': 2, 'body': {{}}, 'envelope': {{}}}})\n",
         encoding="utf-8",
     )
     proc = subprocess.Popen(
@@ -273,9 +286,12 @@ def test_snapshot_no_execute_records_the_launch_surface(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.output
     document = json.loads(out.read_text(encoding="utf-8"))
-    assert document["tier"] == "config"
-    assert document["surface"]["launch"]["argv_preview"] == ["/nonexistent/not-here", "--flag"]
-    assert document["surface"]["tools"] == []
+    assert document["body"]["tier"] == "config"
+    assert document["body"]["surface"]["launch"]["argv_preview"] == [
+        "/nonexistent/not-here",
+        "--flag",
+    ]
+    assert document["body"]["surface"]["tools"] == []
 
 
 def test_a_missing_baseline_is_cannot_compare_not_a_crash(tmp_path: Path) -> None:

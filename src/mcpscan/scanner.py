@@ -62,6 +62,7 @@ def scan_context(
     purpose_category: PurposeCategory | None = None,
     purpose_text: str | None = None,
     timeout_seconds: float | None = None,
+    replayed_from: dict[str, object] | None = None,
 ) -> ScanResult:
     surface = build_surface(ctx)
     purpose_profile = build_purpose_profile(
@@ -74,6 +75,7 @@ def scan_context(
     return ScanResult(
         tier=ctx.tier,
         checks_not_run=[item.to_dict() for item in checks_not_run],
+        replayed_from=replayed_from,
         target=ctx.target,
         server=ctx.server,
         findings=findings,

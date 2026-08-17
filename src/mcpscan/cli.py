@@ -25,14 +25,19 @@ from mcpscan.reporters.markdown import render_config_markdown, render_markdown
 from mcpscan.reporters.sarif import render_config_sarif, render_sarif
 from mcpscan.reporters.terminal import render_config_terminal, render_terminal
 from mcpscan.ruleset import RULESET_VERSION, canonical_manifest_json, ruleset_digest
-from mcpscan.scanner import config_context, scan_target
+from mcpscan.scanner import config_context, scan_context, scan_target
 from mcpscan.scoring import effective_severity
 from mcpscan.sdk_compat import mcp_sdk_problem
 from mcpscan.snapshot import (
+    PROFILE_FULL,
+    PROFILE_HASHES,
     DriftMismatch,
     build_snapshot,
     compare_snapshots,
     load_snapshot,
+    replay_context,
+    replay_provenance,
+    snapshot_body,
     write_snapshot,
 )
 from mcpscan.target import resolve_target
@@ -94,6 +99,13 @@ def snapshot_command(
             "--label", help="Identity for this target; drift refuses to compare across labels."
         ),
     ] = None,
+    profile: Annotated[
+        str,
+        typer.Option(
+            "--profile",
+            help="hashes (default, drift only) or full (retains tool text so the snapshot is replayable).",
+        ),
+    ] = PROFILE_HASHES,
     no_execute: Annotated[
         bool,
         typer.Option(
@@ -114,14 +126,20 @@ def snapshot_command(
             if no_execute
             else asyncio.run(enumerate_target(scan_target_model, timeout_seconds=timeout))
         )
-        document = build_snapshot(ctx, label=label)
+        document = build_snapshot(ctx, label=label, profile=profile)
         write_snapshot(out, document)
-        surface = document["surface"]
+        body = document["body"]
+        surface = body["surface"]
         typer.echo(
             f"Snapshot written to {out} "
-            f"({len(surface['tools'])} tool(s), tier {document['tier']}, "
+            f"({len(surface['tools'])} tool(s), tier {body['tier']}, profile {body['profile']}, "
             f"launch {' '.join(surface['launch']['argv_preview']) or surface['launch'].get('url') or 'n/a'})"
         )
+        if body["profile"] != PROFILE_FULL:
+            typer.echo(
+                "  Hashes only: good for drift, not replayable. "
+                "Use --profile full to make `scan --tier surface` possible."
+            )
         raise typer.Exit(EXIT_OK)
     except TargetError as exc:
         typer.echo(f"Input error: {exc}", err=True)
@@ -176,15 +194,16 @@ def drift_command(
                 if no_execute
                 else asyncio.run(enumerate_target(scan_target_model, timeout_seconds=timeout))
             )
-            current = build_snapshot(ctx, label=base.get("label"))
+            current = build_snapshot(ctx, label=snapshot_body(base).get("label"))
         findings = compare_snapshots(base, current)
 
         if output == "json":
             typer.echo(
                 json.dumps(
                     {
-                        "baseline_label": base.get("label"),
-                        "baseline_surface_version": base.get("surface_version"),
+                        "baseline_label": snapshot_body(base).get("label"),
+                        "baseline_captured_at": base["envelope"]["captured_at"],
+                        "baseline_surface_version": snapshot_body(base).get("surface_version"),
                         "drift_detected": bool(findings),
                         "changes": [f.model_dump(mode="json") for f in findings],
                     },
@@ -193,7 +212,10 @@ def drift_command(
                 )
             )
         elif not findings:
-            typer.echo(f"No drift against {baseline} (label {base.get('label')!r}).")
+            typer.echo(
+                f"No drift against {baseline} "
+                f"(label {snapshot_body(base).get('label')!r}, captured {base['envelope']['captured_at']})."
+            )
         else:
             typer.echo(
                 f"{len(findings)} change(s) against {baseline} (label {base.get('label')!r}):"
@@ -324,25 +346,57 @@ def scan(
             help="Never start or contact the server. Config-tier checks only; the rest are reported as not run.",
         ),
     ] = False,
+    from_snapshot: Annotated[
+        Path | None,
+        typer.Option(
+            "--from-snapshot",
+            help="Replay a `--profile full` snapshot. Runs every check with zero execution.",
+        ),
+    ] = None,
+    tier: Annotated[
+        str | None,
+        typer.Option("--tier", help="config, surface or live. surface requires --from-snapshot."),
+    ] = None,
     fail_on_warnings: Annotated[
         bool, typer.Option("--fail-on-warnings", help="Exit non-zero if warnings are present.")
     ] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable terminal colors.")] = False,
 ) -> None:
     try:
-        scan_target_model = resolve_target(
-            target, command=command, transport=transport, headers=header
-        )
-        result = asyncio.run(
-            scan_target(
-                scan_target_model,
-                timeout_seconds=timeout,
+        if tier is not None and tier not in {"config", "surface", "live"}:
+            raise TargetError("--tier must be one of: config, surface, live.")
+        if tier == "surface" and from_snapshot is None:
+            raise TargetError(
+                "--tier surface replays a stored snapshot, so it needs --from-snapshot <file>. "
+                "Capture one with `mcpscan snapshot --profile full`."
+            )
+        if from_snapshot is not None and tier == "live":
+            raise TargetError("--tier live contradicts --from-snapshot; a replay starts nothing.")
+
+        if from_snapshot is not None:
+            document = load_snapshot(from_snapshot)
+            ctx = replay_context(document, from_snapshot)
+            result = scan_context(
+                ctx,
                 baseline_path=baseline,
                 purpose_category=purpose_category,
                 purpose_text=purpose,
-                execute=not no_execute,
+                replayed_from=replay_provenance(document, from_snapshot),
             )
-        )
+        else:
+            scan_target_model = resolve_target(
+                target, command=command, transport=transport, headers=header
+            )
+            result = asyncio.run(
+                scan_target(
+                    scan_target_model,
+                    timeout_seconds=timeout,
+                    baseline_path=baseline,
+                    purpose_category=purpose_category,
+                    purpose_text=purpose,
+                    execute=not (no_execute or tier == "config"),
+                )
+            )
         rendered = _render(result, output=output, no_color=no_color)
         if out:
             out.write_text(rendered, encoding="utf-8")

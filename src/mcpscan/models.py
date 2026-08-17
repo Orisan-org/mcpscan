@@ -189,6 +189,17 @@ class SurfaceItem(BaseModel):
     name: str
     description_sha256: str | None = None
     schema_sha256: str | None = None
+    #: Present only in a `full` snapshot. Hashes prove a surface did not change;
+    #: they cannot be pattern-matched, so replaying the checks needs the text
+    #: itself. It is server-supplied and untrusted — see SnapshotProfile.
+    description: str | None = None
+    input_schema: dict[str, Any] | None = None
+    #: Resources are keyed by uri, and prompts carry an argument list. Both are
+    #: needed to rebuild a context that produces the same findings as the live
+    #: scan did — replaying tools alone silently dropped two findings.
+    uri: str | None = None
+    mime_type: str | None = None
+    arguments: list[dict[str, Any]] | None = None
 
 
 class LaunchSurface(BaseModel):
@@ -242,6 +253,9 @@ class ScanResult(BaseModel):
     tier: EvidenceTier = EvidenceTier.LIVE
     #: Checks the tier could not supply inputs for. Reported, never silent.
     checks_not_run: list[dict[str, str]] = Field(default_factory=list)
+    #: For a surface replay: which snapshot, and when it was taken. A report
+    #: that does not say lets a stale snapshot pass for a current scan.
+    replayed_from: dict[str, object] | None = None
     target: ScanTarget
     server: ServerInfo
     findings: list[Finding]

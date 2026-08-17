@@ -27,6 +27,16 @@ def render_terminal(result: ScanResult, *, no_color: bool = False) -> str:
     console.print(f"Grade: {grade_label(result.grade, result.tier, result.checks_not_run)}")
     console.print(f"Evidence: {TIER_DESCRIPTIONS[result.tier]}")
     console.print(f"Ruleset: v{RULESET_VERSION} digest {ruleset_digest()[:16]}")
+    if result.replayed_from:
+        # Loud, and above the findings. A replay describes the world as it was
+        # when the snapshot was taken, not as it is now.
+        provenance = result.replayed_from
+        console.print(
+            f"Replayed from: {provenance.get('snapshot_path')}\n"
+            f"  captured {provenance.get('captured_at')} "
+            f"({provenance.get('age_human', 'unknown age')} ago) — "
+            "findings describe the surface AS CAPTURED, not as it is now"
+        )
     table = Table("SEVERITY", "VERDICT", "ID", "TARGET", "FINDING")
     for finding in result.findings:
         table.add_row(

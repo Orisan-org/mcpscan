@@ -31,6 +31,16 @@ def render_markdown(result: ScanResult) -> str:
         f"- Recommendation: {recommendation_for(result)}",
         f"- Grade: {grade_label(result.grade, result.tier, result.checks_not_run)}",
         f"- Evidence tier: {result.tier.value} — {TIER_DESCRIPTIONS[result.tier]}",
+        *(
+            [
+                f"- Replayed from: `{result.replayed_from.get('snapshot_path')}` captured "
+                f"{result.replayed_from.get('captured_at')} "
+                f"({result.replayed_from.get('age_human', 'unknown age')} ago); findings describe "
+                "the surface as captured, not as it is now"
+            ]
+            if result.replayed_from
+            else []
+        ),
         f"- Purpose: {result.purpose_profile.category.value}",
         f"- Purpose source: {result.purpose_profile.category_source.value}",
         "- Expected capabilities: "

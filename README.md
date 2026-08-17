@@ -286,8 +286,28 @@ reason.
 Environment **values** are matched but never emitted — not masked, not
 truncated. The report names the variable and the pattern class only.
 
-Tier `surface` is defined here and not yet reachable: it needs `mcpscan
-snapshot`, which is a later slice.
+**Tier `surface`** replays a stored snapshot, so every check runs with nothing
+started:
+
+    mcpscan snapshot --command "uvx thing@1.2.3" --profile full --out thing.json
+    mcpscan scan --tier surface --from-snapshot thing.json
+
+It needs `--profile full`. The default `hashes` profile is for drift: a digest
+cannot be pattern-matched, so replaying it would run every check against empty
+text and report nothing found. A hashes-only snapshot is **refused** rather than
+replayed into a quiet result. A full snapshot retains server-supplied text and
+is a different thing to keep on disk, which is why it is opt-in.
+
+Every replay report names the snapshot and when it was taken, in JSON, terminal
+and markdown, because a report that does not say lets a stale snapshot pass for
+a current scan:
+
+    Replayed from: thing.json
+      captured 2026-08-17T10:50:40+00:00 (3d ago) — findings describe the
+      surface AS CAPTURED, not as it is now
+
+A replay finds exactly what a live scan of the same server finds; that parity is
+asserted against the malicious fixture on every test run.
 
 Coverage maps to OWASP MCP classes MCP01, MCP02, MCP03, MCP04, MCP05, MCP07, MCP09, MCP10. MCP06 (tool shadowing) and MCP08 (audit/logging) are out of scope for this alpha. MCP04 coverage is launch-specifier pinning only (MCP-062); dependency trees and package provenance are still not inspected. MCP-002 runs only with `--baseline`/`scan-config --baseline-dir`. MCP-050 is an offline heuristic against a curated static seed list, not registry monitoring.
 
