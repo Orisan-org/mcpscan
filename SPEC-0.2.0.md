@@ -188,19 +188,21 @@ Small, first, because it constrains every slice after it.
 
 **Goal.** Make the competitor-accuracy rule mechanical.
 
-**Design.** `tests/test_no_competitor_claims.py` scans `README.md`, `docs/**`,
-`SECURITY.md`, `CHANGELOG.md` and CLI help strings for a list of competitor
-names, and fails if one appears within a configurable window of a comparative
-accuracy term (`false positive`, `misses`, `more accurate`, `better than`,
-`fails to detect`, `catches more`, …).
+**Design.** `tests/test_no_competitor_claims.py` scans every tracked text file
+for a list of competitor names, and fails if one appears within a window of a
+comparative-performance term. The term list lives in the test; it is deliberately
+not reproduced here, because a doc that spells out a name beside such a term is
+itself the thing being forbidden, and this spec is a scanned file.
 
-Naming a competitor factually is allowed ("Ramparts emits SARIF"). Rating one is
+Naming a competitor factually is allowed — that a tool emits SARIF, or requires
+an account token, are checkable feature statements. Rating detection quality is
 not.
 
 **Acceptance tests.**
 
-- **A0.1** A doc containing "mcp-scan has a high false positive rate" fails the test.
-- **A0.2** A doc containing "Ramparts emits SARIF 2.1.0" passes.
+- **A0.1** A synthetic string pairing a competitor name with a comparative term
+  is flagged. Built at runtime from the guard's own lists, never written out.
+- **A0.2** A factual feature statement naming a competitor passes.
 - **A0.3** The test scans its own source, so the competitor list cannot be
   emptied without the test noticing (same pattern as the recorder's domain
   allowlist test).
