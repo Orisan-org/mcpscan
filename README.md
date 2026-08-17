@@ -21,31 +21,31 @@ uvx orisan-mcpscan scan-config sample-mcp.json --yes
 
 The first run downloads the two sample servers via `npx` (~30s cold); after that it is seconds.
 
-Real output — the risky server, which is handed the whole filesystem, grades **D**:
+Real output, from **0.2.0**. `uvx` fetches the newest published release, so if
+yours is older the findings below that come from config-tier checks (MCP-060 to
+MCP-063) will be absent. Both servers here are launched with an unpinned
+`npx -y`, and the risky one is handed the whole filesystem:
 
 ```text
 Servers: 2 total, 2 scanned, 0 failed, 0 skipped
 Worst grade: D
 
 notes-memory
-  Transport: stdio
   Purpose: memory_store (config)
-  Grade: A
-  No findings.
+  Grade: C
+  MEDIUM  unadjudicated  MCP-062  @modelcontextprotocol/server-memory
+          launched via a package runner with no version, so the runner
+          resolves the newest release at every launch
 
 risky-filesystem
-  Transport: stdio
   Purpose: filesystem (config)
   Grade: D
-┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ SEVERITY ┃ VERDICT              ┃ ID      ┃ TARGET              ┃ FINDING                                         ┃
-┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ HIGH     │ expected_unconfirmed │ MCP-010 │ edit_file           │ Tool 'edit_file' appears to expose file write   │
-│ HIGH     │ expected_unconfirmed │ MCP-010 │ get_file_info       │ Tool 'get_file_info' appears to expose read     │
-│ HIGH     │ expected_unconfirmed │ MCP-010 │ read_file           │ Tool 'read_file' appears to expose file read    │
-│ HIGH     │ expected_unconfirmed │ MCP-010 │ read_multiple_files │ Tool 'read_multiple_files' exposes file read    │
-│ HIGH     │ expected_unconfirmed │ MCP-010 │ write_file          │ Tool 'write_file' appears to expose file write  │
-└──────────┴──────────────────────┴─────────┴─────────────────────┴─────────────────────────────────────────────────┘
+  HIGH    expected_unconfirmed  MCP-010  read_file, write_file, edit_file,
+          get_file_info, read_multiple_files — file read/write capability
+  HIGH    unadjudicated         MCP-063  /  grants access to the filesystem
+          root; every tool this server exposes can reach anything under it
+  MEDIUM  unadjudicated         MCP-062  @modelcontextprotocol/server-filesystem
+          launched with no version
 
 Privacy: payload_stored=false for all findings
 ```
@@ -56,7 +56,12 @@ How to read it:
 - **`expected_unconfirmed`** — file read and write are exactly what a filesystem server is for, so they are not treated as hidden capability. But you did not confirm that purpose: the config line could have been copy-pasted from the server's own README. So mcpscan holds severity at **HIGH** rather than either escalating it or waving it through. Confirm with `--purpose-category filesystem` and these drop to `INFO (was HIGH)`.
 - **Severity is never lowered by anything the scanned server had a hand in saying.** Raising it is open to any source; lowering it requires you. That one rule is why the same tool can be both quiet on a legitimate server and loud on a lying one.
 - Nothing is hidden or suppressed — every finding is shown, escalated, held, or annotated.
-- The benign `notes-memory` server grades **A** with no findings, so a clean server looks clean.
+- **`notes-memory` grades C, not A.** It exposes nothing dangerous, but the
+  config launches it unpinned, so the code behind those tool descriptions can
+  change between runs. That is a property of the configuration rather than of
+  the server, which is why the verdict is `unadjudicated`: no declared purpose
+  makes an unpinned launch appropriate, and none makes it worse either.
+  Pin the version and it grades A.
 
 ## What it does, and what it does not do
 
@@ -332,7 +337,7 @@ a temp file left by a killed process is swept by the next write.
 Every report carries `ruleset_version` and `ruleset_digest`, and `mcpscan
 ruleset` prints them without running a scan. The scanner version pins the code;
 the digest pins the **rules**, and a pattern change is what moves a verdict.
-"mcpscan 0.1.1 said B" is not a reproducible claim on its own.
+"mcpscan 0.2.0 said B" is not a reproducible claim on its own.
 
 The digest is taken over a canonical manifest of every check's metadata and
 every module-level constant in its defining module — patterns, keyword lists,

@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.2.0 - 2026-08-17
+
+Static-first scanning, reproducible verdicts, and drift detection. See
+SPEC-0.2.0.md.
+
+**Version note.** 0.1.1 is already on PyPI with different contents; this release
+had to be 0.2.0 rather than a re-upload, which PyPI does not permit.
+
+### Added
+- Evidence tiers (`config` / `surface` / `live`) on every report, with the
+  checks a tier could not run listed rather than silently omitted. `--no-execute`
+  forces config tier; `--tier surface --from-snapshot` replays a stored surface
+  and runs every check with nothing started.
+- Config-tier checks MCP-060 to MCP-063: secrets in configured environment,
+  dangerous launch commands, unpinned package specifiers, broad filesystem
+  grants. These run at every tier.
+- `mcpscan snapshot` and `mcpscan drift`, including the launch command, so a
+  rug pull that changes what runs while leaving descriptions intact is visible.
+- `mcpscan ruleset`: a version and digest over the active rules, carried in
+  every report.
+- Signed results (`--sign-result`, `mcpscan keygen`, `mcpscan verify-result`)
+  over a body excluding wall-clock, hostname and paths.
+- Optional witness submission (`--witness`) of a signed verdict digest.
+- `mcpscan coverage`: which OWASP MCP categories have a check, and what each
+  check inspects.
+- `--output orisan`: findings in orisan-recorder vocabulary as a detached,
+  explicitly unchained document.
+- SARIF on `scan-config`, an OWASP taxonomy, per-result evidence tier, and
+  checks-not-run as tool execution notifications.
+
+### Changed
+- A grade is withheld rather than annotated when any check did not run:
+  JSON `grade` is null with `grade_assessed: false`.
+- Configuration findings are not adjudicated by declared purpose.
+- The bundled sample config now grades `notes-memory` C rather than A, because
+  it is launched unpinned. Pinning the version restores A.
+- `cryptography` is a new runtime dependency, used only for signing.
+
+### Fixed
+- SARIF emitted a singular `invocation` member, which SARIF 2.1.0 does not
+  define; notifications were written where no conformant consumer looks.
+- OWASP MCP04, MCP06 and MCP08 had reference text with no check behind them.
+  MCP04 now has one; the other two are reported as uncovered.
+
 ## 0.1.1 - 2026-08-09
 
 Correctness and honesty release. Remote scanning worked again from a fresh install,
