@@ -16,6 +16,7 @@ from mcpscan.capabilities import owasp_coverage
 from mcpscan.checks.registry import check_catalogue
 from mcpscan.config_scanner import scan_mcp_configs
 from mcpscan.constants import EXIT_ENUMERATION, EXIT_FINDINGS, EXIT_INTERNAL, EXIT_OK, EXIT_USAGE
+from mcpscan.coverage import coverage_summary, render_coverage
 from mcpscan.enumerator import enumerate_target
 from mcpscan.errors import EnumerationError, McpScanError, TargetError
 from mcpscan.models import ConfiguredServer, PurposeCategory, Severity, Transport
@@ -324,6 +325,21 @@ def verify_result_command(
     )
     typer.echo(outcome.report(), nl=False)
     raise typer.Exit(outcome.exit_code)
+
+
+@app.command("coverage")
+def coverage_command(
+    output: Annotated[str, typer.Option("--output", help="text or json.")] = "text",
+) -> None:
+    """What of the OWASP MCP Top 10 has a check, and what each check inspects."""
+    summary = coverage_summary()
+    if output == "json":
+        typer.echo(json.dumps(summary, indent=2, sort_keys=True))
+        return
+    if output != "text":
+        typer.echo("--output must be text or json.", err=True)
+        raise typer.Exit(EXIT_USAGE)
+    typer.echo(render_coverage(summary), nl=False)
 
 
 @app.command("ruleset")

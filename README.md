@@ -381,6 +381,16 @@ a current scan:
 A replay finds exactly what a live scan of the same server finds; that parity is
 asserted against the malicious fixture on every test run.
 
+    mcpscan coverage
+
+prints which of MCP01–MCP10 have a check, what each check actually inspects,
+and which tiers it runs at — derived from the registry, so it cannot claim a
+category nothing checks. It is the answer to give a security review, and it
+says no where the answer is no:
+
+    Uncovered: MCP06, MCP08. These are not partially covered or planned;
+    nothing in mcpscan looks at them today.
+
 Coverage maps to OWASP MCP classes MCP01, MCP02, MCP03, MCP04, MCP05, MCP07, MCP09, MCP10. MCP06 (tool shadowing) and MCP08 (audit/logging) are out of scope for this alpha. MCP04 coverage is launch-specifier pinning only (MCP-062); dependency trees and package provenance are still not inspected. MCP-002 runs only with `--baseline`/`scan-config --baseline-dir`. MCP-050 is an offline heuristic against a curated static seed list, not registry monitoring.
 
 ## Privacy and evidence model
