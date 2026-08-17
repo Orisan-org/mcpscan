@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from mcpscan import __version__
+from mcpscan.capabilities import owasp_coverage
 from mcpscan.checks.registry import check_catalogue
 from mcpscan.config_scanner import scan_mcp_configs
 from mcpscan.constants import EXIT_ENUMERATION, EXIT_FINDINGS, EXIT_INTERNAL, EXIT_OK, EXIT_USAGE
@@ -75,6 +76,17 @@ def list_checks() -> None:
             entry.status,
         )
     console.print(table)
+
+    # Printed with the catalogue, not buried in the README. A reader deciding
+    # whether this tool covers their threat model needs the gaps in the same
+    # view as the coverage.
+    coverage = owasp_coverage()
+    uncovered = {k: v for k, v in coverage.items() if v["status"] == "no_check_implemented"}
+    console.print(
+        f"\nOWASP MCP Top 10: {len(coverage) - len(uncovered)} of {len(coverage)} categories have a check."
+    )
+    for category, entry in uncovered.items():
+        console.print(f"  {category}  {entry['title']}  — {entry['detail']}")
 
 
 @app.command()

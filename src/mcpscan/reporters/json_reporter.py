@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from mcpscan import __version__
+from mcpscan.capabilities import owasp_coverage
 from mcpscan.constants import CHECKS_VERSION, NOT_CHECKED, REPORT_VERSION, SCANNER_NAME
 from mcpscan.models import ConfigScanResult, ScanResult
 from mcpscan.scoring import effective_severity
@@ -44,6 +45,11 @@ def render_json(result: ScanResult) -> str:
         "surface": result.surface.model_dump(mode="json"),
         "findings": [finding.model_dump(mode="json") for finding in result.findings],
         "not_checked": NOT_CHECKED,
+        # Derived from the registry, so it cannot claim a category no check
+        # emits. Three of the ten have no check; a reader deciding whether this
+        # scan covers their threat model needs that in the report, not only in
+        # the README.
+        "owasp_mcp_coverage": owasp_coverage(),
         "warnings": result.warnings,
     }
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
@@ -65,6 +71,7 @@ def render_config_json(result: ConfigScanResult) -> str:
             "findings_total": result.summary.findings_total,
             "worst_grade": result.summary.worst_grade,
         },
+        "owasp_mcp_coverage": owasp_coverage(),
         "server_results": [
             {
                 "name": server.name,
