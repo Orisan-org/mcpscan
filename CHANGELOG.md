@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.1 - 2026-08-17
+
+Two `drift` reporting defects found by running the published 0.2.0 as a
+first-time user. Scanning, signing, verification and coverage are unaffected.
+
+### Fixed
+- `drift` printed `label None` when it found drift. The format-2 change moved
+  `label` into the snapshot body and only the no-drift branch followed it. Both
+  branches now report the label and the baseline's capture time.
+- Comparing snapshots captured at different tiers reported every tool as
+  removed. A config-tier snapshot records the launch and no tool surface, so a
+  live baseline against one produced nine false findings. The tool-surface
+  comparison is now refused with a reason, while the launch — which is recorded
+  at every tier — is still compared, so a genuinely changed launch command is
+  still reported as drift.
+
+### Changed
+- `compare_snapshots` returns a `DriftReport` (`findings`, `surface_compared`,
+  `surface_reason`) rather than a list, so "no tool changes" and "tool changes
+  were not compared" cannot render as the same silence.
+- `drift` exits 2 when the tool surface could not be compared and nothing else
+  changed; a real launch change still exits 1.
+
 ## 0.2.0 - 2026-08-17
 
 Static-first scanning, reproducible verdicts, and drift detection. See
