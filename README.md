@@ -192,6 +192,31 @@ Confirm an inferred purpose with `--purpose-category` when you want the downgrad
 | MCP-041 | Missing TLS | high | MCP07 | active |
 | MCP-050 | Known-name lookalike (curated seed list) | medium | MCP09 | active |
 
+### Evidence tiers
+
+Every report states which tier produced it, and lists the checks that tier could
+not supply inputs for.
+
+| Tier | Input | Starts the server | Network |
+|---|---|---|---|
+| `config` | an MCP config file | no | no |
+| `surface` | a captured surface snapshot | no | no |
+| `live` | a running server | yes | yes |
+
+`--no-execute` forces tier `config` on both `scan` and `scan-config`: nothing is
+started, nothing is contacted. Tool descriptions and schemas do not exist in a
+config file — they live inside the server — so the six checks that read them are
+reported as **not run, with the reason**, never as passing.
+
+A grade is **withheld** when any check did not run. `grade` is `null` in JSON,
+`grade_assessed` is `false`, and the terminal prints
+`not assessed (config tier, N check(s) did not run)`. An annotated `A` still
+reads as an A to someone skimming, and a config-tier scan of a hostile server
+would otherwise score one.
+
+Tier `surface` is defined here and not yet reachable: it needs `mcpscan
+snapshot`, which is a later slice.
+
 Coverage maps to OWASP MCP classes MCP01, MCP02, MCP03, MCP05, MCP07, MCP09, MCP10. MCP04 (supply chain), MCP06 (tool shadowing), and MCP08 (audit/logging) are out of scope for this alpha. MCP-002 runs only with `--baseline`/`scan-config --baseline-dir`. MCP-050 is an offline heuristic against a curated static seed list, not registry monitoring.
 
 ## Privacy and evidence model

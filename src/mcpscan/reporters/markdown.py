@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from mcpscan import __version__
+from mcpscan.tiers import TIER_DESCRIPTIONS, grade_label
 from mcpscan.constants import CHECKS_VERSION, NOT_CHECKED, SCANNER_NAME
 from mcpscan.models import ConfigScanResult, ScanResult
 from mcpscan.reporters.json_reporter import recommendation_for
@@ -26,7 +27,8 @@ def render_markdown(result: ScanResult) -> str:
         "",
         "## Verdict Summary",
         f"- Recommendation: {recommendation_for(result)}",
-        f"- Grade: {result.grade}",
+        f"- Grade: {grade_label(result.grade, result.tier, result.checks_not_run)}",
+        f"- Evidence tier: {result.tier.value} — {TIER_DESCRIPTIONS[result.tier]}",
         f"- Purpose: {result.purpose_profile.category.value}",
         f"- Purpose source: {result.purpose_profile.category_source.value}",
         "- Expected capabilities: "
@@ -39,6 +41,12 @@ def render_markdown(result: ScanResult) -> str:
         "",
         "Top findings:",
     ]
+    if result.checks_not_run:
+        lines.extend(
+            ["", f"## Not checked at this tier ({len(result.checks_not_run)})", ""]
+            + [f"- `{i['check_id']}` {i['title']} — {i['reason']}" for i in result.checks_not_run]
+            + [""]
+        )
     if result.findings:
         lines.extend(f"- {_top_finding(finding)}" for finding in result.findings[:3])
     else:

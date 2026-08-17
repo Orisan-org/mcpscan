@@ -151,6 +151,13 @@ def scan(
             help="Connection timeout in seconds. Cold-start npx/uvx servers may need 30+ seconds.",
         ),
     ] = 90.0,
+    no_execute: Annotated[
+        bool,
+        typer.Option(
+            "--no-execute",
+            help="Never start or contact the server. Config-tier checks only; the rest are reported as not run.",
+        ),
+    ] = False,
     fail_on_warnings: Annotated[
         bool, typer.Option("--fail-on-warnings", help="Exit non-zero if warnings are present.")
     ] = False,
@@ -167,6 +174,7 @@ def scan(
                 baseline_path=baseline,
                 purpose_category=purpose_category,
                 purpose_text=purpose,
+                execute=not no_execute,
             )
         )
         rendered = _render(result, output=output, no_color=no_color)
@@ -251,6 +259,13 @@ def scan_config_command(
         str | None,
         typer.Option("--ingest-token", help="Control-plane ingest bearer token."),
     ] = os.environ.get("ORISAN_INGEST_TOKEN"),
+    no_execute: Annotated[
+        bool,
+        typer.Option(
+            "--no-execute",
+            help="Never start or contact any configured server. Config-tier checks only.",
+        ),
+    ] = False,
     baseline_dir: Annotated[
         Path | None,
         typer.Option(
@@ -293,6 +308,7 @@ def scan_config_command(
                 only=selected,
                 consent=consent,
                 timeout_seconds=timeout,
+                execute=not no_execute,
                 baseline_dir=baseline_dir,
                 purpose_category=purpose_category,
                 purpose_text=purpose,

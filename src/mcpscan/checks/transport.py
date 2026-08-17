@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from mcpscan.capabilities import Capability
 from mcpscan.checks.base import Check
 from mcpscan.models import Finding, ScanContext, Severity, TargetKind
+from mcpscan.tiers import ALL_TIERS, EvidenceTier
 
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
@@ -15,6 +16,10 @@ class UnauthenticatedRemoteServerCheck(Check):
     severity = Severity.HIGH
     default_capability = Capability.TRANSPORT_SECURITY
     owasp_mcp = "MCP07"
+    # Live only. The finding rests on `unauthenticated_enumeration`, which is
+    # an observation about what the server actually allowed — not something a
+    # config file or a stored snapshot can tell you.
+    requires = frozenset({EvidenceTier.LIVE})
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         if (
@@ -38,6 +43,10 @@ class MissingTLSCheck(Check):
     severity = Severity.HIGH
     default_capability = Capability.TRANSPORT_SECURITY
     owasp_mcp = "MCP07"
+    # The scheme is in the config. Nothing needs to be started to see that a
+    # remote target is plaintext, which makes this the first check that is
+    # genuinely useful with no server at all.
+    requires = ALL_TIERS
 
     def run(self, ctx: ScanContext) -> list[Finding]:
         if ctx.target.kind != TargetKind.URL or not ctx.target.url:

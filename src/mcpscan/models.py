@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from mcpscan.capabilities import Capability
+from mcpscan.tiers import EvidenceTier
 
 
 class Severity(str, Enum):
@@ -133,6 +134,9 @@ class ExposedPrompt(BaseModel):
 
 
 class ScanContext(BaseModel):
+    #: What this scan was able to look at. Checks are selected against it and
+    #: every report states it.
+    tier: EvidenceTier = EvidenceTier.LIVE
     target: ScanTarget
     server: ServerInfo = Field(default_factory=ServerInfo)
     tools: list[ExposedTool] = Field(default_factory=list)
@@ -189,6 +193,9 @@ class ScanMetadata(BaseModel):
 
 
 class ScanResult(BaseModel):
+    tier: EvidenceTier = EvidenceTier.LIVE
+    #: Checks the tier could not supply inputs for. Reported, never silent.
+    checks_not_run: list[dict[str, str]] = Field(default_factory=list)
     target: ScanTarget
     server: ServerInfo
     findings: list[Finding]

@@ -5,6 +5,7 @@ import io
 from rich.console import Console
 from rich.table import Table
 
+from mcpscan.tiers import TIER_DESCRIPTIONS, grade_label
 from mcpscan.models import ConfigScanResult, ScanResult
 from mcpscan.scoring import effective_severity
 
@@ -20,7 +21,10 @@ def render_terminal(result: ScanResult, *, no_color: bool = False) -> str:
         f"Purpose: {result.purpose_profile.category.value} "
         f"({result.purpose_profile.category_source.value})"
     )
-    console.print(f"Grade: {result.grade}")
+    # Parentheses, not brackets: Rich reads [..] as console markup and silently
+    # swallowed the whole annotation, leaving a bare "Grade: A" behind.
+    console.print(f"Grade: {grade_label(result.grade, result.tier, result.checks_not_run)}")
+    console.print(f"Evidence: {TIER_DESCRIPTIONS[result.tier]}")
     table = Table("SEVERITY", "VERDICT", "ID", "TARGET", "FINDING")
     for finding in result.findings:
         table.add_row(
@@ -34,6 +38,12 @@ def render_terminal(result: ScanResult, *, no_color: bool = False) -> str:
         console.print(table)
     else:
         console.print("No findings.")
+    if result.checks_not_run:
+        # Not a finding, and not silence. A check that could not run is the one
+        # thing a reader must not mistake for a check that passed.
+        console.print(f"\nNot checked at this tier ({len(result.checks_not_run)}):")
+        for item in result.checks_not_run:
+            console.print(f"  {item['check_id']}  {item['title']} — {item['reason']}")
     console.print(
         "Critical {critical}  High {high}  Medium {medium}  Low {low}  Info {info}".format(
             **result.counts

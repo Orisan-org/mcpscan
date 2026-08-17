@@ -36,6 +36,7 @@ async def scan_mcp_configs(
     baseline_dir: Path | None = None,
     purpose_category: PurposeCategory | None = None,
     purpose_text: str | None = None,
+    execute: bool = True,
 ) -> ConfigScanResult:
     loaded = load_mcp_configs(config_path)
     selected = [server for server in loaded.servers if not only or server.name in only]
@@ -59,7 +60,10 @@ async def scan_mcp_configs(
     if baseline_dir:
         baseline_dir.mkdir(parents=True, exist_ok=True)
     for server in selected:
-        if server.transport == Transport.STDIO and consent and not consent(server):
+        # With execution off there is nothing to consent to: nothing is
+        # started and nothing is contacted, so the prompt is skipped entirely
+        # rather than asked and ignored.
+        if execute and server.transport == Transport.STDIO and consent and not consent(server):
             skipped.append(
                 SkippedConfiguredServer(
                     name=server.name,
@@ -74,6 +78,7 @@ async def scan_mcp_configs(
             result = await scan_target(
                 _target_for_server(server),
                 timeout_seconds=timeout_seconds,
+                execute=execute,
                 baseline_path=baseline_path if baseline_path and baseline_path.exists() else None,
                 purpose_category=purpose_category,
                 purpose_text=purpose_text,

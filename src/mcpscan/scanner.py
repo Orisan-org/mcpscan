@@ -6,7 +6,7 @@ from typing import Any
 
 from mcpscan.adjudicate import adjudicate_findings
 from mcpscan.checks.registry import active_checks
-from mcpscan.engine import run_checks, sort_findings
+from mcpscan.engine import run_checks_with_coverage, sort_findings
 from mcpscan.enumerator import enumerate_target
 from mcpscan.models import (
     ExposedPrompt,
@@ -18,9 +18,19 @@ from mcpscan.models import (
     ScanResult,
     ScanTarget,
 )
+from mcpscan.tiers import EvidenceTier
 from mcpscan.purpose import build_purpose_profile
 from mcpscan.scoring import count_findings, grade_for
 from mcpscan.surface import build_surface, compare_tool_surface, load_baseline_surface
+
+
+def config_context(target: ScanTarget) -> ScanContext:
+    """A context built from the target alone. Nothing is started or contacted.
+
+    There is no tool surface here and there cannot be one: descriptions live
+    inside the server. Checks needing one are reported as not run.
+    """
+    return ScanContext(tier=EvidenceTier.CONFIG, target=target)
 
 
 async def scan_target(
@@ -29,8 +39,14 @@ async def scan_target(
     baseline_path: Path | None = None,
     purpose_category: PurposeCategory | None = None,
     purpose_text: str | None = None,
+    execute: bool = True,
 ) -> ScanResult:
-    ctx = await enumerate_target(target, timeout_seconds=timeout_seconds)
+    if execute:
+        ctx = await enumerate_target(target, timeout_seconds=timeout_seconds)
+    else:
+        # No await, no subprocess, no socket. Asserted by a test that makes
+        # both raise.
+        ctx = config_context(target)
     return scan_context(
         ctx,
         baseline_path=baseline_path,
@@ -51,11 +67,13 @@ def scan_context(
     purpose_profile = build_purpose_profile(
         ctx, purpose_category=purpose_category, purpose_text=purpose_text
     )
-    findings = run_checks(ctx, active_checks())
+    findings, checks_not_run = run_checks_with_coverage(ctx, active_checks())
     if baseline_path:
         findings.extend(compare_tool_surface(surface, load_baseline_surface(baseline_path)))
     findings = sort_findings(adjudicate_findings(findings, purpose_profile))
     return ScanResult(
+        tier=ctx.tier,
+        checks_not_run=[item.to_dict() for item in checks_not_run],
         target=ctx.target,
         server=ctx.server,
         findings=findings,

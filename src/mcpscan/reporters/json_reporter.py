@@ -4,6 +4,7 @@ import json
 
 from mcpscan import __version__
 from mcpscan.capabilities import owasp_coverage
+from mcpscan.tiers import TIER_DESCRIPTIONS, grade_is_assessable
 from mcpscan.constants import CHECKS_VERSION, NOT_CHECKED, REPORT_VERSION, SCANNER_NAME
 from mcpscan.models import ConfigScanResult, ScanResult
 from mcpscan.scoring import effective_severity
@@ -20,6 +21,11 @@ def recommendation_for(result: ScanResult) -> str:
 def render_json(result: ScanResult) -> str:
     payload = {
         "report_version": REPORT_VERSION,
+        # What this scan could see, and what it therefore could not check.
+        # Both are top-level: a reader must not have to know to look for them.
+        "tier": result.tier.value,
+        "tier_description": TIER_DESCRIPTIONS[result.tier],
+        "checks_not_run": result.checks_not_run,
         "scan": {
             "mcpscan_version": __version__,
             "checks_version": CHECKS_VERSION,
@@ -38,7 +44,13 @@ def render_json(result: ScanResult) -> str:
         "purpose_profile": result.purpose_profile.model_dump(mode="json"),
         "verdict_summary": {
             "recommendation": recommendation_for(result),
-            "grade": result.grade,
+            "grade": result.grade if grade_is_assessable(result.checks_not_run) else None,
+            "grade_assessed": grade_is_assessable(result.checks_not_run),
+            "grade_withheld_reason": (
+                None
+                if grade_is_assessable(result.checks_not_run)
+                else f"{len(result.checks_not_run)} check(s) did not run at tier {result.tier.value}"
+            ),
             "counts_by_adjusted_severity": result.counts,
             "top_findings": _top_findings(result),
         },
@@ -83,6 +95,9 @@ def render_config_json(result: ConfigScanResult) -> str:
                     "grade": server.result.grade,
                     "counts": server.result.counts,
                 },
+                "tier": server.result.tier.value,
+                "tier_description": TIER_DESCRIPTIONS[server.result.tier],
+                "checks_not_run": server.result.checks_not_run,
                 "purpose_profile": server.result.purpose_profile.model_dump(mode="json"),
                 "surface": server.result.surface.model_dump(mode="json"),
                 "findings": [finding.model_dump(mode="json") for finding in server.result.findings],
