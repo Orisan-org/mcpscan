@@ -77,7 +77,9 @@ def render_config_terminal(result: ConfigScanResult, *, no_color: bool = False) 
         f"{result.summary.servers_failed} failed, "
         f"{result.summary.servers_skipped} skipped"
     )
-    console.print(f"Worst grade: {_worst_grade_label(result.summary.worst_grade)}")
+    console.print(
+        f"Worst grade: {_worst_grade_label(result.summary.worst_grade, result.server_results)}"
+    )
     for server in result.server_results:
         console.print("")
         console.print(f"{server.name}")
@@ -87,7 +89,9 @@ def render_config_terminal(result: ConfigScanResult, *, no_color: bool = False) 
             f"  Purpose: {server.result.purpose_profile.category.value} "
             f"({server.result.purpose_profile.category_source.value})"
         )
-        console.print(f"  Grade: {server.result.grade}")
+        console.print(
+            f"  Grade: {grade_label(server.result.grade, server.result.tier, server.result.checks_not_run)}"
+        )
         if server.env_names:
             console.print(f"  Env names observed: {len(server.env_names)}")
         if server.result.findings:
@@ -125,6 +129,17 @@ def _severity_label(finding) -> str:
     return f"{adjusted.value.upper()} (was {finding.severity.value.upper()})"
 
 
-def _worst_grade_label(worst_grade: str | None) -> str:
-    """Never render a grade for an empty result set. See BRIEF-0.1.1.md bug 2b."""
-    return worst_grade if worst_grade else "not assessed (no server was scanned)"
+def _worst_grade_label(worst_grade: str | None, results: list | None = None) -> str:
+    """Never render a grade the scan did not earn.
+
+    Two ways it can be unearned. Nothing was scanned (BRIEF-0.1.1.md bug 2b),
+    or something was scanned at a tier where checks could not run — the same
+    rule `scan` already applied, which `scan-config` did not. A cold-install
+    walkthrough found it printing "Worst grade: F" over two servers with seven
+    skipped checks each.
+    """
+    if not worst_grade:
+        return "not assessed (no server was scanned)"
+    if results and any(server.result.checks_not_run for server in results):
+        return f"{worst_grade} (of the checks that ran; some did not — see each server)"
+    return worst_grade

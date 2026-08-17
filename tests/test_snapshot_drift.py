@@ -306,3 +306,17 @@ def test_a_missing_baseline_is_cannot_compare_not_a_crash(tmp_path: Path) -> Non
         ],
     )
     assert result.exit_code == 2
+
+
+def test_an_unknown_profile_is_refused_not_silently_downgraded(tmp_path: Path) -> None:
+    """`--profile fulll` used to write a hashes-only snapshot and exit 0. The
+    mistake surfaced later at `scan --tier surface`, by which time the server
+    may not be around to re-snapshot."""
+    out = tmp_path / "s.json"
+    result = runner.invoke(
+        app,
+        ["snapshot", "--command", FIXTURE, "--out", str(out), "--profile", "fulll", "--no-execute"],
+    )
+    assert result.exit_code == 2
+    assert "--profile must be" in result.output
+    assert not out.exists(), "nothing should be written for an invalid profile"

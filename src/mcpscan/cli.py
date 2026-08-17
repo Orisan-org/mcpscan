@@ -135,6 +135,14 @@ def snapshot_command(
 ) -> None:
     """Record a server's surface so a later scan can tell what changed."""
     try:
+        if profile not in {PROFILE_HASHES, PROFILE_FULL}:
+            # Silently accepted before, which meant `--profile fulll` wrote a
+            # hashes-only snapshot and exited 0. The mistake surfaced later at
+            # `scan --tier surface`, by which time the server may not still be
+            # around to re-snapshot.
+            raise TargetError(
+                f"--profile must be {PROFILE_HASHES!r} or {PROFILE_FULL!r}, not {profile!r}."
+            )
         scan_target_model = resolve_target(
             target, command=command, transport=transport, headers=header
         )

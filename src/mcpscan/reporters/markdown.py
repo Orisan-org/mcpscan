@@ -143,7 +143,17 @@ def render_config_markdown(result: ConfigScanResult) -> str:
         f"- Servers failed: {result.summary.servers_failed}",
         f"- Servers skipped: {result.summary.servers_skipped}",
         f"- Findings total: {result.summary.findings_total}",
-        f"- Worst grade: {result.summary.worst_grade or 'not assessed (no server was scanned)'}",
+        "- Worst grade: "
+        + (
+            result.summary.worst_grade
+            if result.summary.worst_grade
+            and all(s.result.checks_not_run == [] for s in result.server_results)
+            else (
+                "not assessed (no server was scanned)"
+                if not result.summary.worst_grade
+                else f"{result.summary.worst_grade} (of the checks that ran; some did not)"
+            )
+        ),
         "- Payload stored: false for all findings",
         "",
         "## Config Files",

@@ -218,3 +218,37 @@ def test_every_active_check_declares_a_non_empty_tier_set() -> None:
     for check in active_checks():
         assert check.requires, check.id
         assert check.requires <= ALL_TIERS, check.id
+
+
+# ------------------------------------------------- the grade rule on the config path
+
+
+def test_scan_config_withholds_the_grade_when_checks_did_not_run(tmp_path: Path) -> None:
+    """`scan` applied this rule and `scan-config` did not, which is backwards:
+    the config path is the primary way anyone scans at config tier. Found by a
+    cold-install walkthrough printing "Worst grade: F" over two servers with
+    seven skipped checks each."""
+    config = tmp_path / "mcp.json"
+    config.write_text(
+        json.dumps({"mcpServers": {"fs": {"command": "npx", "args": ["-y", "srv", "/"]}}}),
+        encoding="utf-8",
+    )
+    payload = json.loads(
+        runner.invoke(app, ["scan-config", str(config), "--no-execute", "--output", "json"]).stdout
+    )
+    server = payload["server_results"][0]
+    assert server["summary"]["grade"] is None
+    assert server["summary"]["grade_assessed"] is False
+    assert payload["summary"]["worst_grade"] is None
+    assert payload["summary"]["worst_grade_assessed"] is False
+
+
+def test_scan_config_terminal_never_shows_a_bare_letter_at_config_tier(tmp_path: Path) -> None:
+    config = tmp_path / "mcp.json"
+    config.write_text(
+        json.dumps({"mcpServers": {"fs": {"command": "npx", "args": ["-y", "srv", "/"]}}}),
+        encoding="utf-8",
+    )
+    out = runner.invoke(app, ["scan-config", str(config), "--no-execute", "--no-color"]).stdout
+    assert "not assessed" in out
+    assert "some did not" in out

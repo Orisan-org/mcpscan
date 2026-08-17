@@ -89,7 +89,16 @@ def render_config_json(result: ConfigScanResult) -> str:
         },
         "summary": {
             "findings_total": result.summary.findings_total,
-            "worst_grade": result.summary.worst_grade,
+            # Withheld on the same rule `scan` uses: a letter over servers
+            # whose checks did not all run is a letter nothing earned.
+            "worst_grade": (
+                result.summary.worst_grade
+                if all(s.result.checks_not_run == [] for s in result.server_results)
+                else None
+            ),
+            "worst_grade_assessed": all(
+                s.result.checks_not_run == [] for s in result.server_results
+            ),
         },
         "owasp_mcp_coverage": owasp_coverage(),
         "server_results": [
@@ -100,7 +109,12 @@ def render_config_json(result: ConfigScanResult) -> str:
                 "env": {"names": server.env_names, "count": len(server.env_names)},
                 "server": server.result.server.model_dump(mode="json"),
                 "summary": {
-                    "grade": server.result.grade,
+                    "grade": (
+                        server.result.grade
+                        if grade_is_assessable(server.result.checks_not_run)
+                        else None
+                    ),
+                    "grade_assessed": grade_is_assessable(server.result.checks_not_run),
                     "counts": server.result.counts,
                 },
                 "tier": server.result.tier.value,
