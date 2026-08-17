@@ -49,9 +49,19 @@ def test_scan_baseline_detects_tool_added_and_description_changed(tmp_path) -> N
     payload = json.loads(current.read_text(encoding="utf-8"))
     drift_findings = [finding for finding in payload["findings"] if finding["id"] == "MCP-002"]
 
-    assert [finding["target"] for finding in drift_findings] == ["list_docs", "search_docs"]
-    assert "was added" in drift_findings[0]["evidence"]
-    assert "description hash changed" in drift_findings[1]["evidence"]
+    # Two dimensions now. The fixture command changes from benign_server.py to
+    # benign_server_v2.py, so the launch surface genuinely differs and saying
+    # so is the point of the launch block — a rug pull that swaps what runs
+    # while leaving every description intact used to produce nothing at all.
+    tool_findings = [f for f in drift_findings if f["target"] != "launch"]
+    launch_findings = [f for f in drift_findings if f["target"] == "launch"]
+
+    assert [finding["target"] for finding in tool_findings] == ["list_docs", "search_docs"]
+    assert "was added" in tool_findings[0]["evidence"]
+    assert "description hash changed" in tool_findings[1]["evidence"]
+
+    assert launch_findings, "a changed launch command must be reported"
+    assert any("arguments changed" in f["evidence"] for f in launch_findings)
     assert "Search public documentation and release notes" not in json.dumps(payload)
     assert all(finding["payload_stored"] is False for finding in drift_findings)
 

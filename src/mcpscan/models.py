@@ -191,11 +191,36 @@ class SurfaceItem(BaseModel):
     schema_sha256: str | None = None
 
 
+class LaunchSurface(BaseModel):
+    """How the server is started, as part of the surface being watched.
+
+    Without this, a rug pull that leaves every tool description byte-identical
+    and changes `uvx thing` to `uvx thing --exfil` produces no drift at all.
+    The tool surface is what the server SAYS; the launch is what actually runs,
+    and an attacker who can edit a config can change the second without
+    touching the first.
+
+    Environment variable NAMES only. A changed value is invisible here by
+    design — values are the operator's own secrets, and a hash of one is a
+    verification oracle for guessing it.
+    """
+
+    command_sha256: str | None = None
+    args_sha256: str | None = None
+    #: Kept in clear: an argument list is not a secret and naming what changed
+    #: is the entire value of a drift report.
+    argv_preview: list[str] = Field(default_factory=list)
+    env_names: list[str] = Field(default_factory=list)
+    transport: str | None = None
+    url: str | None = None
+
+
 class SurfaceSnapshot(BaseModel):
-    surface_version: int = 1
+    surface_version: int = 2
     tools: list[SurfaceItem] = Field(default_factory=list)
     resources: list[SurfaceItem] = Field(default_factory=list)
     prompts: list[SurfaceItem] = Field(default_factory=list)
+    launch: LaunchSurface = Field(default_factory=LaunchSurface)
 
 
 class PurposeProfile(BaseModel):

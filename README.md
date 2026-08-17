@@ -196,6 +196,39 @@ Confirm an inferred purpose with `--purpose-category` when you want the downgrad
 | MCP-062 | Unpinned server package | medium | MCP04 | active, all tiers |
 | MCP-063 | Broad filesystem path granted in configuration | high | MCP02 | active, all tiers |
 
+### Snapshot and drift
+
+    mcpscan snapshot --command "uvx thing@1.2.3" --out thing.snapshot.json --label thing
+    mcpscan drift --baseline thing.snapshot.json --command "uvx thing@1.2.3"
+
+A rug pull is a change made *after* you approved a server, so a one-shot scan
+structurally cannot see it. `snapshot` records the surface; `drift` says what
+moved.
+
+The snapshot records the **launch** as well as the tool surface: the executable,
+the argument vector, the environment variable **names**, the transport and the
+URL. That closes the case a tool comparison misses entirely — every description
+byte-identical, and `uvx thing` quietly replaced by `uvx thing --exfil`.
+
+Drift reports tool added, tool removed, description changed, schema changed,
+launch executable changed, launch arguments changed, environment names changed,
+transport changed and URL changed.
+
+Environment **values** are never recorded or compared, not even as hashes: a
+hash of a secret is an oracle for guessing it. A changed value is invisible here
+by design, and the report says so.
+
+Exit codes: **0** no drift, **1** drift, **2** cannot compare. Comparing two
+snapshots with different labels is refused rather than reported as
+every-tool-changed, which is operator error dressed as a catastrophe.
+`--against <snapshot>` compares two files and executes nothing, which is the
+CI-safe mode. A baseline captured before the launch block existed reports that
+the launch was **not compared**, rather than reporting no change.
+
+Snapshot files carry no timestamp and are byte-identical for an unchanged
+server, so they can be committed and diffed like a lockfile. Writes are atomic;
+a temp file left by a killed process is swept by the next write.
+
 ### Ruleset version and digest
 
 Every report carries `ruleset_version` and `ruleset_digest`, and `mcpscan

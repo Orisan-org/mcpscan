@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from pathlib import Path
 from typing import Annotated
@@ -15,6 +16,7 @@ from mcpscan.capabilities import owasp_coverage
 from mcpscan.checks.registry import check_catalogue
 from mcpscan.config_scanner import scan_mcp_configs
 from mcpscan.constants import EXIT_ENUMERATION, EXIT_FINDINGS, EXIT_INTERNAL, EXIT_OK, EXIT_USAGE
+from mcpscan.enumerator import enumerate_target
 from mcpscan.errors import EnumerationError, McpScanError, TargetError
 from mcpscan.models import ConfiguredServer, PurposeCategory, Severity, Transport
 from mcpscan.reporters.envelope import render_config_envelope, render_envelope
@@ -23,9 +25,16 @@ from mcpscan.reporters.markdown import render_config_markdown, render_markdown
 from mcpscan.reporters.sarif import render_config_sarif, render_sarif
 from mcpscan.reporters.terminal import render_config_terminal, render_terminal
 from mcpscan.ruleset import RULESET_VERSION, canonical_manifest_json, ruleset_digest
-from mcpscan.scanner import scan_target
+from mcpscan.scanner import config_context, scan_target
 from mcpscan.scoring import effective_severity
 from mcpscan.sdk_compat import mcp_sdk_problem
+from mcpscan.snapshot import (
+    DriftMismatch,
+    build_snapshot,
+    compare_snapshots,
+    load_snapshot,
+    write_snapshot,
+)
 from mcpscan.target import resolve_target
 from mcpscan.utils.severity import severity_gte
 
@@ -62,6 +71,145 @@ def main(
 @app.command()
 def version() -> None:
     console.print(__version__)
+
+
+@app.command("snapshot")
+def snapshot_command(
+    target: Annotated[str | None, typer.Argument(help="Remote MCP URL target.")] = None,
+    command: Annotated[
+        str | None, typer.Option("--command", help="Command for stdio MCP target.")
+    ] = None,
+    transport: Annotated[
+        Transport | None, typer.Option("--transport", help="Transport type.")
+    ] = None,
+    header: Annotated[
+        list[str] | None, typer.Option("--header", help="Remote header 'Name: Value'.")
+    ] = None,
+    out: Annotated[Path, typer.Option("--out", help="Snapshot file to write.")] = Path(
+        "mcpscan-snapshot.json"
+    ),
+    label: Annotated[
+        str | None,
+        typer.Option(
+            "--label", help="Identity for this target; drift refuses to compare across labels."
+        ),
+    ] = None,
+    no_execute: Annotated[
+        bool,
+        typer.Option(
+            "--no-execute", help="Record the launch surface only; do not start the server."
+        ),
+    ] = False,
+    timeout: Annotated[
+        float, typer.Option("--timeout", help="Connection timeout in seconds.")
+    ] = 90.0,
+) -> None:
+    """Record a server's surface so a later scan can tell what changed."""
+    try:
+        scan_target_model = resolve_target(
+            target, command=command, transport=transport, headers=header
+        )
+        ctx = (
+            config_context(scan_target_model)
+            if no_execute
+            else asyncio.run(enumerate_target(scan_target_model, timeout_seconds=timeout))
+        )
+        document = build_snapshot(ctx, label=label)
+        write_snapshot(out, document)
+        surface = document["surface"]
+        typer.echo(
+            f"Snapshot written to {out} "
+            f"({len(surface['tools'])} tool(s), tier {document['tier']}, "
+            f"launch {' '.join(surface['launch']['argv_preview']) or surface['launch'].get('url') or 'n/a'})"
+        )
+        raise typer.Exit(EXIT_OK)
+    except TargetError as exc:
+        typer.echo(f"Input error: {exc}", err=True)
+        raise typer.Exit(EXIT_USAGE) from exc
+    except EnumerationError as exc:
+        typer.echo(f"Enumeration error: {exc}", err=True)
+        raise typer.Exit(EXIT_ENUMERATION) from exc
+
+
+@app.command("drift")
+def drift_command(
+    baseline: Annotated[Path, typer.Option("--baseline", help="Snapshot to compare against.")],
+    target: Annotated[str | None, typer.Argument(help="Remote MCP URL target.")] = None,
+    command: Annotated[
+        str | None, typer.Option("--command", help="Command for stdio MCP target.")
+    ] = None,
+    transport: Annotated[
+        Transport | None, typer.Option("--transport", help="Transport type.")
+    ] = None,
+    header: Annotated[
+        list[str] | None, typer.Option("--header", help="Remote header 'Name: Value'.")
+    ] = None,
+    against: Annotated[
+        Path | None,
+        typer.Option(
+            "--against",
+            help="Compare against a second snapshot instead of a live target. Executes nothing.",
+        ),
+    ] = None,
+    no_execute: Annotated[
+        bool,
+        typer.Option(
+            "--no-execute", help="Compare the launch surface only; do not start the server."
+        ),
+    ] = False,
+    output: Annotated[str, typer.Option("--output", help="Report output: table, json.")] = "table",
+    timeout: Annotated[
+        float, typer.Option("--timeout", help="Connection timeout in seconds.")
+    ] = 90.0,
+) -> None:
+    """Report what changed since a snapshot. Exit 0 no drift, 1 drift, 2 cannot compare."""
+    try:
+        base = load_snapshot(baseline)
+        if against is not None:
+            current = load_snapshot(against)
+        else:
+            scan_target_model = resolve_target(
+                target, command=command, transport=transport, headers=header
+            )
+            ctx = (
+                config_context(scan_target_model)
+                if no_execute
+                else asyncio.run(enumerate_target(scan_target_model, timeout_seconds=timeout))
+            )
+            current = build_snapshot(ctx, label=base.get("label"))
+        findings = compare_snapshots(base, current)
+
+        if output == "json":
+            typer.echo(
+                json.dumps(
+                    {
+                        "baseline_label": base.get("label"),
+                        "baseline_surface_version": base.get("surface_version"),
+                        "drift_detected": bool(findings),
+                        "changes": [f.model_dump(mode="json") for f in findings],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        elif not findings:
+            typer.echo(f"No drift against {baseline} (label {base.get('label')!r}).")
+        else:
+            typer.echo(
+                f"{len(findings)} change(s) against {baseline} (label {base.get('label')!r}):"
+            )
+            for finding in findings:
+                typer.echo(f"  {finding.severity.value:<8} {finding.target:<12} {finding.evidence}")
+        raise typer.Exit(EXIT_FINDINGS if findings else EXIT_OK)
+    except DriftMismatch as exc:
+        typer.echo(f"Cannot compare: {exc}", err=True)
+        raise typer.Exit(EXIT_USAGE) from exc
+    except TargetError as exc:
+        typer.echo(f"Input error: {exc}", err=True)
+        raise typer.Exit(EXIT_USAGE) from exc
+    except EnumerationError as exc:
+        typer.echo(f"Enumeration error: {exc}", err=True)
+        raise typer.Exit(EXIT_ENUMERATION) from exc
 
 
 @app.command("ruleset")
