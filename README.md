@@ -196,6 +196,37 @@ Confirm an inferred purpose with `--purpose-category` when you want the downgrad
 | MCP-062 | Unpinned server package | medium | MCP04 | active, all tiers |
 | MCP-063 | Broad filesystem path granted in configuration | high | MCP02 | active, all tiers |
 
+### Signed results
+
+    mcpscan keygen
+    mcpscan scan --command "uvx thing@1.2.3" --sign-result result.json
+    mcpscan verify-result result.json --pubkey mcpscan.pub
+
+The signature covers a **verdict body** that excludes everything
+non-reproducible: wall-clock, hostname, paths, duration. Those sit in an
+unsigned envelope, and `verify-result` prints which fields are outside the
+signature so nobody assumes otherwise.
+
+That split is what makes "same input, same output, byte identical" testable
+rather than a slogan. Ed25519 is deterministic, so the same body under the same
+key produces the same 64 signature bytes every time — a body with a timestamp in
+it never could. The **ruleset version and digest are inside the signed body**: a
+verdict whose ruleset is unidentified is not reproducible, whatever it is signed
+with.
+
+The target is recorded as a **digest, not a command line**. A command line can
+contain a home directory, which names a person, and a signed record is the thing
+most likely to be forwarded to someone who should not learn it.
+
+Keys are never created by a scan. `mcpscan keygen` writes one deliberately, mode
+600 from the moment it exists. A scan with no key writes an **unsigned** record
+and says so on stderr; it does not generate key material as a side effect, which
+on a shared CI runner would be a liability rather than a convenience.
+
+`verify-result` exits **0** verified, **1** tampered, **2** cannot verify. An
+unsigned record is always 2 — never 0, because "we verify our scans" must not
+quietly become untrue.
+
 ### Snapshot and drift
 
     mcpscan snapshot --command "uvx thing@1.2.3" --out thing.snapshot.json --label thing

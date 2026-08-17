@@ -28,6 +28,16 @@ from mcpscan.ruleset import RULESET_VERSION, canonical_manifest_json, ruleset_di
 from mcpscan.scanner import config_context, scan_context, scan_target
 from mcpscan.scoring import effective_severity
 from mcpscan.sdk_compat import mcp_sdk_problem
+from mcpscan.signing import (
+    EXIT_CANNOT_VERIFY,
+    SigningError,
+    build_result_record,
+    default_key_path,
+    generate_key,
+    load_private_key,
+    render_record,
+    verify_record,
+)
 from mcpscan.snapshot import (
     PROFILE_FULL,
     PROFILE_HASHES,
@@ -234,6 +244,43 @@ def drift_command(
         raise typer.Exit(EXIT_ENUMERATION) from exc
 
 
+@app.command("keygen")
+def keygen_command(
+    out: Annotated[
+        Path | None, typer.Option("--out", help="Where to write the private key.")
+    ] = None,
+) -> None:
+    """Create a signing key. Deliberate, never a side effect of a scan."""
+    path = out or default_key_path()
+    try:
+        pem = generate_key(path)
+    except SigningError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(EXIT_USAGE) from exc
+    typer.echo(f"Private key written to {path} (mode 600). Keep it; publish only the public key:\n")
+    typer.echo(pem)
+
+
+@app.command("verify-result")
+def verify_result_command(
+    record_path: Annotated[Path, typer.Argument(help="A signed scan result to check.")],
+    pubkey: Annotated[
+        Path | None, typer.Option("--pubkey", help="Pin the expected public key (PEM).")
+    ] = None,
+) -> None:
+    """Check a signed result. Exit 0 verified, 1 tampered, 2 cannot verify."""
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        typer.echo(f"CANNOT VERIFY  {record_path} could not be read: {exc}", err=True)
+        raise typer.Exit(EXIT_CANNOT_VERIFY) from exc
+    outcome = verify_record(
+        record, expect_pubkey_pem=pubkey.read_text(encoding="utf-8") if pubkey else None
+    )
+    typer.echo(outcome.report(), nl=False)
+    raise typer.Exit(outcome.exit_code)
+
+
 @app.command("ruleset")
 def ruleset_command(
     manifest: Annotated[
@@ -346,6 +393,13 @@ def scan(
             help="Never start or contact the server. Config-tier checks only; the rest are reported as not run.",
         ),
     ] = False,
+    sign_result: Annotated[
+        Path | None,
+        typer.Option("--sign-result", help="Write a signed result record to this path."),
+    ] = None,
+    signing_key: Annotated[
+        Path | None, typer.Option("--signing-key", help="Private key to sign with.")
+    ] = None,
     from_snapshot: Annotated[
         Path | None,
         typer.Option(
@@ -402,6 +456,25 @@ def scan(
             out.write_text(rendered, encoding="utf-8")
         else:
             typer.echo(rendered, nl=False)
+        if sign_result:
+            key_path = signing_key or default_key_path()
+            key = None
+            if key_path.exists():
+                key = load_private_key(key_path)
+            record = build_result_record(result, key=key)
+            sign_result.write_text(render_record(record), encoding="utf-8")
+            if key is None:
+                # Stated, not silent. An unsigned record is not a signed one.
+                typer.echo(
+                    f"Result written UNSIGNED to {sign_result}: no key at {key_path}. "
+                    "Create one with `mcpscan keygen`.",
+                    err=True,
+                )
+            else:
+                typer.echo(
+                    f"Signed result written to {sign_result} (body {record['body_sha256'][:16]}…)"
+                )
+
         if envelope_out:
             envelope_payload = render_envelope(result)
             envelope_out.write_text(envelope_payload, encoding="utf-8")
