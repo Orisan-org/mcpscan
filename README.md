@@ -227,6 +227,30 @@ on a shared CI runner would be a liability rather than a convenience.
 unsigned record is always 2 — never 0, because "we verify our scans" must not
 quietly become untrue.
 
+#### Witnessing a result (optional)
+
+    mcpscan witness register --url https://witness.orisan.org
+    mcpscan scan --command "uvx thing@1.2.3" --sign-result result.json --witness
+
+A signature proves who said something. It does not prove **when**, and it cannot
+prove an inconvenient result was not quietly deleted. Submitting the verdict's
+digest to a witness outside your control closes both.
+
+The witness receives, exhaustively: a random log id, an index, the body digest,
+and the signature over those. It never receives findings, grades, target
+strings, tool names, commands or paths. The payload is built from an allowlist
+rather than by filtering, so adding a field to the record cannot leak it, and a
+test asserts the exact field set. The log id is a random UUID and does not
+encode the target.
+
+The witness key is **pinned** at registration and never updated from a response.
+A different key later is an attack, not a rotation.
+
+None of this is required. No witness, an unreachable witness or a throttled one
+all leave the scan and its signature standing; the result is marked unwitnessed
+and says why. Without `--witness` nothing is contacted at all, which is asserted
+by a test that makes every outbound call raise.
+
 ### Snapshot and drift
 
     mcpscan snapshot --command "uvx thing@1.2.3" --out thing.snapshot.json --label thing

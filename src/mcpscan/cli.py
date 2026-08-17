@@ -35,6 +35,7 @@ from mcpscan.signing import (
     default_key_path,
     generate_key,
     load_private_key,
+    public_key_pem,
     render_record,
     verify_record,
 )
@@ -52,6 +53,10 @@ from mcpscan.snapshot import (
 )
 from mcpscan.target import resolve_target
 from mcpscan.utils.severity import severity_gte
+from mcpscan.witness import WitnessError
+from mcpscan.witness import read_config as read_witness_config
+from mcpscan.witness import register as witness_register_log
+from mcpscan.witness import submit as witness_submit
 
 app = typer.Typer(no_args_is_help=True, help="Local-first security scanner for MCP servers.")
 console = Console()
@@ -244,6 +249,46 @@ def drift_command(
         raise typer.Exit(EXIT_ENUMERATION) from exc
 
 
+witness_app = typer.Typer(help="Optional: prove a signed verdict existed at a point in time.")
+app.add_typer(witness_app, name="witness")
+
+
+def _state_dir(override: Path | None) -> Path:
+    return override or Path(os.environ.get("MCPSCAN_HOME", Path.home() / ".mcpscan"))
+
+
+@witness_app.command("register")
+def witness_register(
+    url: Annotated[str, typer.Option("--url", help="Witness base URL.")],
+    signing_key: Annotated[Path | None, typer.Option("--signing-key")] = None,
+    state_dir: Annotated[Path | None, typer.Option("--state-dir")] = None,
+) -> None:
+    """Register with a witness and PIN the key it answers with."""
+    try:
+        key = load_private_key(signing_key or default_key_path())
+        config = witness_register_log(_state_dir(state_dir), url, public_key_pem(key))
+    except (SigningError, WitnessError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(EXIT_USAGE) from exc
+    typer.echo(f"Registered log {config['log_id']} with {config['url']}.")
+    typer.echo("Witness key pinned. A different key later is an attack, not a rotation.")
+
+
+@witness_app.command("status")
+def witness_status(
+    state_dir: Annotated[Path | None, typer.Option("--state-dir")] = None,
+) -> None:
+    """Show the pinned witness, if any."""
+    config = read_witness_config(_state_dir(state_dir))
+    if config is None:
+        typer.echo("No witness registered. Scans run and results are marked unwitnessed.")
+        raise typer.Exit(EXIT_OK)
+    typer.echo(f"url        {config['url']}")
+    typer.echo(f"log_id     {config['log_id']}")
+    typer.echo(f"registered {config['registered_at']}")
+    typer.echo(f"submitted  {config.get('next_index', 0)} result(s)")
+
+
 @app.command("keygen")
 def keygen_command(
     out: Annotated[
@@ -400,6 +445,14 @@ def scan(
     signing_key: Annotated[
         Path | None, typer.Option("--signing-key", help="Private key to sign with.")
     ] = None,
+    witness: Annotated[
+        bool,
+        typer.Option(
+            "--witness",
+            help="Submit the signed verdict digest to the registered witness. Never blocks the scan.",
+        ),
+    ] = False,
+    witness_state_dir: Annotated[Path | None, typer.Option("--state-dir")] = None,
     from_snapshot: Annotated[
         Path | None,
         typer.Option(
@@ -463,6 +516,32 @@ def scan(
                 key = load_private_key(key_path)
             record = build_result_record(result, key=key)
             sign_result.write_text(render_record(record), encoding="utf-8")
+            if witness and key is not None:
+                outcome = witness_submit(
+                    _state_dir(witness_state_dir), record["body_sha256"], key.sign
+                )
+                record["witness"] = (
+                    {
+                        "log_id": read_witness_config(_state_dir(witness_state_dir))["log_id"],
+                        "index": outcome.index,
+                        "witnessed_at": outcome.receipt.get("witnessed_at")
+                        if outcome.receipt
+                        else None,
+                    }
+                    if outcome.ok
+                    else {"submitted": False, "reason": outcome.error}
+                )
+                sign_result.write_text(render_record(record), encoding="utf-8")
+                if outcome.ok:
+                    typer.echo(f"Witnessed at index {outcome.index}.")
+                else:
+                    # Never fatal. The scan and its signature stand alone.
+                    typer.echo(f"Not witnessed: {outcome.error}", err=True)
+            elif witness:
+                typer.echo(
+                    "Not witnessed: no signing key, so there is no verdict to submit.", err=True
+                )
+
             if key is None:
                 # Stated, not silent. An unsigned record is not a signed one.
                 typer.echo(
