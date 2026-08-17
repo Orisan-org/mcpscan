@@ -35,6 +35,7 @@ from mcpscan.surface import SURFACE_VERSION, build_surface, compare_tool_surface
 runner = CliRunner()
 PYEXE = sys.executable
 FIXTURE = f"{PYEXE} tests/fixtures/benign_server.py"
+FIXTURE_V2 = f"{PYEXE} tests/fixtures/benign_server_v2.py"
 
 
 def ctx(command: list[str], env: dict[str, str] | None = None) -> ScanContext:
@@ -320,3 +321,119 @@ def test_an_unknown_profile_is_refused_not_silently_downgraded(tmp_path: Path) -
     assert result.exit_code == 2
     assert "--profile must be" in result.output
     assert not out.exists(), "nothing should be written for an invalid profile"
+
+
+# ------------------------------------------------- reporting, not just exit codes
+#
+# Both defects below shipped in 0.2.0 and neither was caught, because every
+# drift test asserted an exit code and none asserted what the command SAID,
+# and because every test built both snapshots at the same tier so a mismatch
+# never arose. These build them at different tiers on purpose.
+
+
+def _snapshot_at(tmp_path: Path, name: str, command: str, *, live: bool, label: str = "t") -> Path:
+    out = tmp_path / name
+    args = ["snapshot", "--command", command, "--out", str(out), "--label", label]
+    if not live:
+        args.append("--no-execute")
+    result = runner.invoke(app, args)
+    assert result.exit_code == 0, result.output
+    return out
+
+
+def test_drift_names_the_label_and_capture_time_when_it_finds_drift(tmp_path: Path) -> None:
+    """It printed "label None" for a snapshot labelled 't': the format-2 split
+    moved `label` into the body and only the no-drift branch followed it."""
+    a = _snapshot_at(tmp_path, "a.json", FIXTURE, live=True)
+    b = _snapshot_at(tmp_path, "b.json", f"{FIXTURE} --exfil", live=True)
+    out = runner.invoke(app, ["drift", "--baseline", str(a), "--against", str(b)])
+    assert "label 't'" in out.stdout
+    assert "label None" not in out.stdout
+    assert "captured 20" in out.stdout
+
+
+def test_the_no_drift_and_drift_messages_report_the_same_facts(tmp_path: Path) -> None:
+    a = _snapshot_at(tmp_path, "a.json", FIXTURE, live=True)
+    b = _snapshot_at(tmp_path, "b.json", f"{FIXTURE} --exfil", live=True)
+    clean = runner.invoke(app, ["drift", "--baseline", str(a), "--against", str(a)]).stdout
+    dirty = runner.invoke(app, ["drift", "--baseline", str(a), "--against", str(b)]).stdout
+    for text in (clean, dirty):
+        assert "label 't'" in text
+        assert "captured 20" in text
+
+
+def test_a_live_baseline_against_a_config_snapshot_reports_no_removed_tools(tmp_path: Path) -> None:
+    """The 0.2.0 defect: nine tools reported "removed since baseline" against a
+    snapshot that never captured a tool surface."""
+    live = _snapshot_at(tmp_path, "live.json", FIXTURE, live=True)
+    config = _snapshot_at(tmp_path, "cfg.json", f"{FIXTURE} --exfil", live=False)
+
+    out = runner.invoke(app, ["drift", "--baseline", str(live), "--against", str(config)])
+    assert "was removed since baseline" not in out.output
+    # The launch change is comparable across tiers and must still be reported.
+    assert "Launch arguments changed" in out.stdout
+    assert "--exfil" in out.stdout
+    assert out.exit_code == 1, "a real launch change is drift, whatever the surface state"
+
+
+def test_the_refusal_says_which_side_lacked_a_surface(tmp_path: Path) -> None:
+    live = _snapshot_at(tmp_path, "live.json", FIXTURE, live=True)
+    config = _snapshot_at(tmp_path, "cfg.json", FIXTURE, live=False)
+
+    out = runner.invoke(app, ["drift", "--baseline", str(live), "--against", str(config)])
+    assert "CANNOT FULLY COMPARE" in out.output
+    assert "tool surface was NOT compared" in out.output
+    assert "the current snapshot was captured at config tier" in out.output
+    assert "tiers differ (baseline live, current config)" in out.output
+
+    reversed_out = runner.invoke(app, ["drift", "--baseline", str(config), "--against", str(live)])
+    assert "the baseline snapshot was captured at config tier" in reversed_out.output
+
+
+def test_two_config_snapshots_are_not_described_as_differing_tiers(tmp_path: Path) -> None:
+    """They match each other and still have nothing to compare. Claiming a
+    difference that is not there is its own small untruth."""
+    a = _snapshot_at(tmp_path, "a.json", FIXTURE, live=False)
+    b = _snapshot_at(tmp_path, "b.json", FIXTURE, live=False)
+    out = runner.invoke(app, ["drift", "--baseline", str(a), "--against", str(b)])
+    assert "both snapshots are config tier" in out.output
+    assert "tiers differ" not in out.output
+
+
+def test_an_uncompared_surface_is_never_reported_as_no_drift(tmp_path: Path) -> None:
+    """Exit 2, not 0. "No drift" would be a claim about something never looked at."""
+    a = _snapshot_at(tmp_path, "a.json", FIXTURE, live=False)
+    b = _snapshot_at(tmp_path, "b.json", FIXTURE, live=False)
+    out = runner.invoke(app, ["drift", "--baseline", str(a), "--against", str(b)])
+    assert out.exit_code == 2
+    assert "No drift" not in out.stdout
+
+
+def test_json_output_states_whether_the_surface_was_compared(tmp_path: Path) -> None:
+    live = _snapshot_at(tmp_path, "live.json", FIXTURE, live=True)
+    config = _snapshot_at(tmp_path, "cfg.json", FIXTURE, live=False)
+
+    mixed = json.loads(
+        runner.invoke(
+            app, ["drift", "--baseline", str(live), "--against", str(config), "--output", "json"]
+        ).stdout
+    )
+    assert mixed["surface_compared"] is False
+    assert "config tier" in mixed["surface_not_compared_reason"]
+
+    same = json.loads(
+        runner.invoke(
+            app, ["drift", "--baseline", str(live), "--against", str(live), "--output", "json"]
+        ).stdout
+    )
+    assert same["surface_compared"] is True
+    assert same["surface_not_compared_reason"] is None
+
+
+def test_matched_tiers_still_compare_the_tool_surface(tmp_path: Path) -> None:
+    """The refusal must not have disabled the comparison it exists to protect."""
+    a = _snapshot_at(tmp_path, "a.json", FIXTURE, live=True)
+    b = _snapshot_at(tmp_path, "b.json", FIXTURE_V2, live=True)
+    out = runner.invoke(app, ["drift", "--baseline", str(a), "--against", str(b)])
+    assert "was added since baseline" in out.stdout or "description hash changed" in out.stdout
+    assert out.exit_code == 1
