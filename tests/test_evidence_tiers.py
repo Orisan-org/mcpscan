@@ -59,7 +59,14 @@ def test_no_execute_cli_completes_against_a_command_that_does_not_exist() -> Non
     # If anything tried to run it, this would fail at the spawn stage.
     out = runner.invoke(
         app,
-        ["scan", "--command", "/nonexistent/definitely-not-here", "--no-execute", "--output", "json"],
+        [
+            "scan",
+            "--command",
+            "/nonexistent/definitely-not-here",
+            "--no-execute",
+            "--output",
+            "json",
+        ],
     )
     assert out.exit_code == 0, out.output
     assert json.loads(out.stdout)["tier"] == "config"
@@ -172,14 +179,18 @@ def test_scan_config_reports_the_tier_per_server(tmp_path: Path) -> None:
 
 
 def test_config_tier_finds_plaintext_http_with_nothing_running() -> None:
-    out = runner.invoke(app, ["scan", "http://example.invalid/mcp", "--no-execute", "--output", "json"])
+    out = runner.invoke(
+        app, ["scan", "http://example.invalid/mcp", "--no-execute", "--output", "json"]
+    )
     payload = json.loads(out.stdout)
     assert any(f["id"] == "MCP-041" for f in payload["findings"])
 
 
 def test_config_tier_findings_are_deterministic() -> None:
     def body() -> dict:
-        out = runner.invoke(app, ["scan", "http://example.invalid/mcp", "--no-execute", "--output", "json"])
+        out = runner.invoke(
+            app, ["scan", "http://example.invalid/mcp", "--no-execute", "--output", "json"]
+        )
         payload = json.loads(out.stdout)
         payload["scan"].pop("timestamp_utc", None)
         return payload

@@ -85,7 +85,7 @@ class CheckNotRun:
 
 def reason_for(check_id: str, required: frozenset[EvidenceTier], tier: EvidenceTier) -> str:
     """Say what was missing, in terms of evidence rather than internals."""
-    if SURFACE_TIERS <= required or required == SURFACE_TIERS:
+    if required >= SURFACE_TIERS or required == SURFACE_TIERS:
         return (
             f"needs the server's tool surface; tier {tier.value} did not provide one "
             "(capture one with `mcpscan snapshot`, or allow execution)"

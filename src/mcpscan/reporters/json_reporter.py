@@ -4,10 +4,10 @@ import json
 
 from mcpscan import __version__
 from mcpscan.capabilities import owasp_coverage
-from mcpscan.tiers import TIER_DESCRIPTIONS, grade_is_assessable
 from mcpscan.constants import CHECKS_VERSION, NOT_CHECKED, REPORT_VERSION, SCANNER_NAME
 from mcpscan.models import ConfigScanResult, ScanResult
 from mcpscan.scoring import effective_severity
+from mcpscan.tiers import TIER_DESCRIPTIONS, grade_is_assessable
 
 
 def recommendation_for(result: ScanResult) -> str:

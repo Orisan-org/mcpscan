@@ -191,6 +191,10 @@ Confirm an inferred purpose with `--purpose-category` when you want the downgrad
 | MCP-040 | Unauthenticated remote server | high | MCP07 | active |
 | MCP-041 | Missing TLS | high | MCP07 | active |
 | MCP-050 | Known-name lookalike (curated seed list) | medium | MCP09 | active |
+| MCP-060 | Secret value in configured environment | critical | MCP01 | active, all tiers |
+| MCP-061 | Dangerous launch command or configuration | high | MCP05 | active, all tiers |
+| MCP-062 | Unpinned server package | medium | MCP04 | active, all tiers |
+| MCP-063 | Broad filesystem path granted in configuration | high | MCP02 | active, all tiers |
 
 ### Evidence tiers
 
@@ -214,10 +218,25 @@ A grade is **withheld** when any check did not run. `grade` is `null` in JSON,
 reads as an A to someone skimming, and a config-tier scan of a hostile server
 would otherwise score one.
 
+MCP-060 to MCP-063 read the configuration rather than the tool surface, so they
+run at **every** tier — including with `--no-execute`. A config that pipes a
+remote script into a shell, hands over a home directory, or carries a live
+credential is a finding before any server starts.
+
+These are **configuration findings** and are deliberately outside purpose
+adjudication. A declared purpose cannot make a credential in the environment
+appropriate, and a filesystem server being expected to read files must not
+excuse it being handed every file you own. Their severity is neither raised nor
+lowered by the declared purpose; the verdict reads `unadjudicated` with the
+reason.
+
+Environment **values** are matched but never emitted — not masked, not
+truncated. The report names the variable and the pattern class only.
+
 Tier `surface` is defined here and not yet reachable: it needs `mcpscan
 snapshot`, which is a later slice.
 
-Coverage maps to OWASP MCP classes MCP01, MCP02, MCP03, MCP05, MCP07, MCP09, MCP10. MCP04 (supply chain), MCP06 (tool shadowing), and MCP08 (audit/logging) are out of scope for this alpha. MCP-002 runs only with `--baseline`/`scan-config --baseline-dir`. MCP-050 is an offline heuristic against a curated static seed list, not registry monitoring.
+Coverage maps to OWASP MCP classes MCP01, MCP02, MCP03, MCP04, MCP05, MCP07, MCP09, MCP10. MCP06 (tool shadowing) and MCP08 (audit/logging) are out of scope for this alpha. MCP04 coverage is launch-specifier pinning only (MCP-062); dependency trees and package provenance are still not inspected. MCP-002 runs only with `--baseline`/`scan-config --baseline-dir`. MCP-050 is an offline heuristic against a curated static seed list, not registry monitoring.
 
 ## Privacy and evidence model
 

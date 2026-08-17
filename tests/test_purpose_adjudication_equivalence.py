@@ -46,6 +46,7 @@ from mcpscan.models import (
     ContextualVerdict,
     ExposedTool,
     Finding,
+    FindingScope,
     PurposeCategory,
     PurposeSource,
     ScanContext,
@@ -171,11 +172,24 @@ def test_operator_invocation_matches_explicit_flag_exactly() -> None:
 
 def test_reference_filesystem_server_no_longer_grades_f_by_default() -> None:
     """Bug 1's headline symptom: the default invocation graded the most widely deployed
-    MCP server in the ecosystem an F with two criticals."""
+    MCP server in the ecosystem an F with two criticals.
+
+    The grade is C rather than B since MCP-062 landed. That is not a regression of
+    bug 1: the reference command is `npx -y @modelcontextprotocol/server-filesystem`,
+    which carries no version and therefore resolves a new release on every launch.
+    The finding is true, it is MEDIUM, and it is a configuration finding so purpose
+    neither excuses nor escalates it. What bug 1 was about — an F and two criticals
+    on the ecosystem's most common server — is still fixed, and that is what the
+    assertions below pin.
+    """
     result = scan_context(operator_named_filesystem_context())
 
-    assert result.grade == "B"
+    assert result.grade == "C"
+    assert result.grade != "F"
     assert result.counts["critical"] == 0
+    unpinned = [f for f in result.findings if f.id == "MCP-062"]
+    assert len(unpinned) == 1, "the grade drop must be the unpinned specifier and nothing else"
+    assert unpinned[0].adjusted_severity == unpinned[0].original_severity
     assert all(
         finding.contextual_verdict != ContextualVerdict.UNDECLARED for finding in result.findings
     )
@@ -309,13 +323,23 @@ def test_config_sourced_purpose_never_downgrades() -> None:
     from_cli = scan_context(operator_named_filesystem_context())
     from_config = scan_context(_config_filesystem_context())
 
-    assert from_cli.grade == "B"
-    assert from_config.grade != "B", "a config-sourced purpose must not buy a downgrade"
+    assert from_cli.grade == "C"
+    assert from_config.grade != from_cli.grade, "a config-sourced purpose must not buy a downgrade"
 
-    for finding in from_config.findings:
+    # Capability findings are the ones purpose can speak to. Configuration
+    # findings are deliberately outside adjudication entirely — asserted
+    # separately below rather than excluded quietly.
+    surface = [f for f in from_config.findings if f.scope is FindingScope.SURFACE]
+    assert surface, "expected at least one capability finding to adjudicate"
+    for finding in surface:
         assert finding.contextual_verdict == ContextualVerdict.EXPECTED_UNCONFIRMED
         assert finding.adjusted_severity == finding.original_severity
         assert finding.adjusted_severity != Severity.INFO
+
+    for finding in from_config.findings:
+        if finding.scope is FindingScope.CONFIGURATION:
+            assert finding.contextual_verdict == ContextualVerdict.UNADJUDICATED
+            assert finding.adjusted_severity == finding.original_severity
 
 
 def test_config_sourced_purpose_still_escalates_an_unexpected_capability() -> None:
@@ -351,7 +375,14 @@ def test_operator_confirmation_restores_the_downgrade_for_a_config_target() -> N
     result = scan_context(_config_filesystem_context(), purpose_category=PurposeCategory.FILESYSTEM)
 
     assert result.purpose_profile.category_source == PurposeSource.FLAG
-    assert result.grade == "B"
+    # C, not B: the operator's confirmation restores the capability downgrade,
+    # but it cannot and must not touch the unpinned-specifier finding.
+    assert result.grade == "C"
+    assert all(
+        f.contextual_verdict == ContextualVerdict.EXPECTED_BY_PURPOSE
+        for f in result.findings
+        if f.scope is FindingScope.SURFACE
+    )
 
 
 # ------------------------------------------------------ guarding the declared_text line

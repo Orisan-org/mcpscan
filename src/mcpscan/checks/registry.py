@@ -5,6 +5,12 @@ from dataclasses import dataclass
 from mcpscan.capabilities import Capability, owasp_reference
 from mcpscan.checks.base import Check
 from mcpscan.checks.command_injection import CommandInjectionSurfaceCheck
+from mcpscan.checks.config_surface import (
+    BroadFilesystemGrantCheck,
+    DangerousLaunchCommandCheck,
+    SecretInConfiguredEnvironmentCheck,
+    UnpinnedServerPackageCheck,
+)
 from mcpscan.checks.dangerous_capabilities import DangerousCapabilityExposureCheck
 from mcpscan.checks.prompt_injection import ToolDescriptionPromptInjectionCheck
 from mcpscan.checks.secrets import SecretExposureInMetadataCheck
@@ -34,6 +40,11 @@ PHASE1_CHECKS: list[Check] = [
     UnauthenticatedRemoteServerCheck(),
     MissingTLSCheck(),
     LookalikeNameCheck(),
+    # Config-tier checks: no server, no network, no snapshot required.
+    SecretInConfiguredEnvironmentCheck(),
+    DangerousLaunchCommandCheck(),
+    UnpinnedServerPackageCheck(),
+    BroadFilesystemGrantCheck(),
 ]
 
 DEFERRED_CHECKS = [

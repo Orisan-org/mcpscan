@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from mcpscan import __version__
-from mcpscan.tiers import TIER_DESCRIPTIONS, grade_label
 from mcpscan.constants import CHECKS_VERSION, NOT_CHECKED, SCANNER_NAME
 from mcpscan.models import ConfigScanResult, ScanResult
 from mcpscan.reporters.json_reporter import recommendation_for
 from mcpscan.scoring import effective_severity
+from mcpscan.tiers import TIER_DESCRIPTIONS, grade_label
 
 
 def render_markdown(result: ScanResult) -> str:

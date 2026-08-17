@@ -20,7 +20,7 @@ from mcpscan.models import ConfiguredServer, PurposeCategory, Severity, Transpor
 from mcpscan.reporters.envelope import render_config_envelope, render_envelope
 from mcpscan.reporters.json_reporter import render_config_json, render_json
 from mcpscan.reporters.markdown import render_config_markdown, render_markdown
-from mcpscan.reporters.sarif import render_sarif
+from mcpscan.reporters.sarif import render_config_sarif, render_sarif
 from mcpscan.reporters.terminal import render_config_terminal, render_terminal
 from mcpscan.scanner import scan_target
 from mcpscan.scoring import effective_severity
@@ -238,7 +238,8 @@ def scan_config_command(
         typer.Option("--only", help="Comma-separated server names to scan."),
     ] = None,
     output: Annotated[
-        str, typer.Option("--output", help="Report output: table, terminal, json, md, markdown.")
+        str,
+        typer.Option("--output", help="Report output: table, terminal, json, md, markdown, sarif."),
     ] = "table",
     out: Annotated[Path | None, typer.Option("--out", help="Write report to path.")] = None,
     envelope_out: Annotated[
@@ -380,7 +381,9 @@ def _render_config(result, *, output: str, no_color: bool) -> str:
         return render_config_json(result)
     if output in {"md", "markdown"}:
         return render_config_markdown(result)
-    raise TargetError("--output must be one of: table, terminal, json, md, markdown.")
+    if output == "sarif":
+        return render_config_sarif(result)
+    raise TargetError("--output must be one of: table, terminal, json, md, markdown, sarif.")
 
 
 def _push_envelope(envelope_payload: str, control_plane_url: str, ingest_token: str | None) -> str:

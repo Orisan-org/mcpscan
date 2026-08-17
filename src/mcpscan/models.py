@@ -146,6 +146,26 @@ class ScanContext(BaseModel):
     unauthenticated_enumeration: bool = False
 
 
+class FindingScope(str, Enum):
+    """What a finding is about, which decides whether purpose can adjudicate it.
+
+    SURFACE findings are about capabilities the server exposes — a tool that
+    reads files. "Does this server need that?" is a sensible question, and the
+    adjudicator answers it against the declared purpose.
+
+    CONFIGURATION findings are about how the server is launched — an unpinned
+    package, a credential in the environment, the whole home directory passed
+    as an argument. Purpose cannot make any of those appropriate. Adjudicating
+    them produces nonsense in both directions: escalated as a "possible hidden
+    capability" because no purpose lists "unpinned package" as expected, or
+    downgraded to INFO because a filesystem server is of course expected to
+    read files — which would quietly excuse handing it every file you own.
+    """
+
+    SURFACE = "surface"
+    CONFIGURATION = "configuration"
+
+
 class Finding(BaseModel):
     id: str
     title: str
@@ -155,6 +175,7 @@ class Finding(BaseModel):
     contextual_verdict: ContextualVerdict = ContextualVerdict.UNADJUDICATED
     verdict_reasoning: str = ""
     capability: Capability
+    scope: FindingScope = FindingScope.SURFACE
     owasp_mcp: str
     target: str
     evidence: str

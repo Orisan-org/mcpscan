@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from mcpscan.capabilities import Capability, owasp_reference
-from mcpscan.models import Finding, ScanContext, Severity
+from mcpscan.models import Finding, FindingScope, ScanContext, Severity
 from mcpscan.tiers import SURFACE_TIERS, EvidenceTier
 
 
@@ -21,6 +21,9 @@ class Check(ABC):
     #: and reported as not run, never to run against absent input and return
     #: nothing.
     requires: frozenset[EvidenceTier] = SURFACE_TIERS
+
+    #: See FindingScope. Configuration findings are not adjudicated by purpose.
+    scope: FindingScope = FindingScope.SURFACE
 
     @property
     def reference(self) -> str:
@@ -47,6 +50,7 @@ class Check(ABC):
             severity=severity or self.severity,
             capability=capability or self.default_capability,
             owasp_mcp=finding_owasp,
+            scope=self.scope,
             target=target,
             evidence=evidence,
             remediation=remediation,

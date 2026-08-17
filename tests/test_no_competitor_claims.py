@@ -82,7 +82,10 @@ COMPETITOR_NAMES: list[str] = [
 def _tracked_text_files() -> list[Path]:
     out = subprocess.run(
         ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-        cwd=ROOT, capture_output=True, text=True, check=True
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout
     files = []
     for rel in out.split("\0"):
@@ -107,7 +110,9 @@ def _violations(text: str, source: str) -> list[str]:
                 if term in window:
                     line = text[: match.start()].count("\n") + 1
                     excerpt = " ".join(text[start:end].split())[:220]
-                    found.append(f'{source}:{line}: "{name}" within {WINDOW} chars of "{term}" — …{excerpt}…')
+                    found.append(
+                        f'{source}:{line}: "{name}" within {WINDOW} chars of "{term}" — …{excerpt}…'
+                    )
                     break
     return found
 
@@ -118,7 +123,11 @@ def test_no_shipped_text_rates_a_competitor() -> None:
 
     violations: list[str] = []
     for path in files:
-        violations.extend(_violations(path.read_text(encoding="utf-8", errors="replace"), str(path.relative_to(ROOT))))
+        violations.extend(
+            _violations(
+                path.read_text(encoding="utf-8", errors="replace"), str(path.relative_to(ROOT))
+            )
+        )
 
     assert not violations, (
         "Shipped text rates another scanner's performance. We have run no controlled "
@@ -132,7 +141,13 @@ def test_this_guard_scans_itself() -> None:
 
 
 def test_a_rating_sentence_is_caught() -> None:
-    bad = "We benchmarked against " + COMPETITOR_NAMES[0] + ", which has a high " + _terms()[0] + " rate."
+    bad = (
+        "We benchmarked against "
+        + COMPETITOR_NAMES[0]
+        + ", which has a high "
+        + _terms()[0]
+        + " rate."
+    )
     assert _violations(bad, "synthetic")
 
 
@@ -148,7 +163,11 @@ def test_a_factual_mention_is_allowed() -> None:
 
 def test_our_own_accuracy_language_is_allowed() -> None:
     # Describing our OWN behaviour must stay sayable; the rule is about others.
-    ours = "mcpscan reports a check that could not run as not run, never as passed. " + _terms()[0] + "s are triaged."
+    ours = (
+        "mcpscan reports a check that could not run as not run, never as passed. "
+        + _terms()[0]
+        + "s are triaged."
+    )
     assert not _violations(ours, "synthetic")
 
 

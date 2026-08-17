@@ -44,11 +44,10 @@ OWASP_MCP_REFERENCES: dict[str, str] = {
 #: build until the category is removed from here and the README is updated, and
 #: deleting a check fails the build until it is added. The set cannot silently
 #: drift away from reality, which is the failure this guards.
-UNCOVERED_OWASP_MCP: frozenset[str] = frozenset({"MCP04", "MCP06", "MCP08"})
+UNCOVERED_OWASP_MCP: frozenset[str] = frozenset({"MCP06", "MCP08"})
 
 #: Why each uncovered category is uncovered. Shown to operators verbatim.
 UNCOVERED_REASONS: dict[str, str] = {
-    "MCP04": "no check: dependency and package provenance are not inspected",
     "MCP06": "no check: cross-server tool shadowing is not detected",
     "MCP08": "no check: the server's own audit and logging behaviour is not assessed",
 }
@@ -82,7 +81,9 @@ def owasp_coverage() -> dict[str, dict[str, str]]:
         category: {
             "title": title,
             "status": "checked" if category in covered else "no_check_implemented",
-            "detail": "" if category in covered else UNCOVERED_REASONS.get(category, "no check implemented"),
+            "detail": ""
+            if category in covered
+            else UNCOVERED_REASONS.get(category, "no check implemented"),
         }
         for category, title in sorted(OWASP_MCP_REFERENCES.items())
     }

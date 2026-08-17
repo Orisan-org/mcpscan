@@ -4,6 +4,7 @@ from mcpscan.capabilities import Capability
 from mcpscan.models import (
     ContextualVerdict,
     Finding,
+    FindingScope,
     PurposeCategory,
     PurposeProfile,
     PurposeSource,
@@ -71,6 +72,19 @@ def adjudicate_findings(findings: list[Finding], profile: PurposeProfile) -> lis
 def _adjudicate_finding(finding: Finding, profile: PurposeProfile) -> Finding:
     original = finding.original_severity or finding.severity
     adjusted = finding.adjusted_severity or original
+
+    if finding.scope is FindingScope.CONFIGURATION:
+        # Neither raised nor lowered. A declared purpose cannot make a
+        # credential in the environment appropriate, and cannot make an
+        # unpinned package into a "hidden capability" either.
+        return _updated(
+            finding,
+            original,
+            original,
+            ContextualVerdict.UNADJUDICATED,
+            "Configuration finding: about how the server is launched, not about a capability "
+            "it exposes, so the declared purpose neither excuses nor aggravates it.",
+        )
 
     if (
         profile.category == PurposeCategory.UNKNOWN

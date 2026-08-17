@@ -18,10 +18,10 @@ from mcpscan.models import (
     ScanResult,
     ScanTarget,
 )
-from mcpscan.tiers import EvidenceTier
 from mcpscan.purpose import build_purpose_profile
 from mcpscan.scoring import count_findings, grade_for
 from mcpscan.surface import build_surface, compare_tool_surface, load_baseline_surface
+from mcpscan.tiers import EvidenceTier
 
 
 def config_context(target: ScanTarget) -> ScanContext:

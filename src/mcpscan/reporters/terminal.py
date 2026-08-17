@@ -5,9 +5,9 @@ import io
 from rich.console import Console
 from rich.table import Table
 
-from mcpscan.tiers import TIER_DESCRIPTIONS, grade_label
 from mcpscan.models import ConfigScanResult, ScanResult
 from mcpscan.scoring import effective_severity
+from mcpscan.tiers import TIER_DESCRIPTIONS, grade_label
 
 
 def render_terminal(result: ScanResult, *, no_color: bool = False) -> str:
