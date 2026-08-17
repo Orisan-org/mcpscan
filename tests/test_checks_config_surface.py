@@ -300,10 +300,12 @@ def test_scan_config_sarif_is_valid_and_reports_not_run(tmp_path: Path) -> None:
     assert payload["version"] == "2.1.0"
     run = payload["runs"][0]
     assert run["results"]
-    assert run["invocation"]["toolExecutionNotifications"], (
+    # `invocations`, plural: SARIF 2.1.0 has no singular member, and the first
+    # version of this reporter wrote notifications where no consumer looks.
+    assert run["invocations"][0]["toolExecutionNotifications"], (
         "not-run checks must be visible in SARIF"
     )
-    assert run["invocation"]["properties"]["evidence_tiers"] == ["config"]
+    assert run["invocations"][0]["properties"]["evidence_tiers"] == ["config"]
 
 
 def test_sarif_never_carries_a_snippet(tmp_path: Path) -> None:

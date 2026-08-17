@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from mcpscan import __version__
+from mcpscan.capabilities import owasp_coverage
 from mcpscan.checks.registry import check_catalogue
 from mcpscan.constants import SCANNER_NAME
 from mcpscan.models import ConfigScanResult, Finding, ScanResult, Severity
@@ -42,11 +43,42 @@ def render_config_sarif(result: ConfigScanResult) -> str:
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
+#: SARIF expresses a classification system as a taxonomy the run declares and
+#: results point into, rather than as a loose string property. Without this an
+#: OWASP category is just text a consumer has to know to look for.
+OWASP_TAXONOMY_GUID = "b9f4c2d1-6a3e-4c8b-9f21-0e7d5a3b8c64"
+
+
+def _owasp_taxonomy() -> dict:
+    return {
+        "name": "OWASP MCP Top 10",
+        "guid": OWASP_TAXONOMY_GUID,
+        "informationUri": "https://owasp.org/",
+        "organization": "OWASP",
+        "shortDescription": {"text": "Risk categories for Model Context Protocol servers."},
+        "isComprehensive": False,
+        "taxa": [
+            {
+                "id": category,
+                "name": entry["title"],
+                "shortDescription": {"text": entry["title"]},
+                "properties": {
+                    # Derived from the registry, so the taxonomy cannot claim
+                    # coverage mcpscan does not have.
+                    "coverage": entry["status"],
+                    "coverage_detail": entry["detail"],
+                },
+            }
+            for category, entry in owasp_coverage().items()
+        ],
+    }
+
+
 def _run(scans: list[tuple[str, ScanResult]]) -> dict:
     results = []
     notifications = []
     for uri, scan in scans:
-        results.extend(_result(finding, uri) for finding in scan.findings)
+        results.extend(_result(finding, uri, scan) for finding in scan.findings)
         # A check that could not run is reported, not omitted. Without this a
         # SARIF consumer cannot tell "clean" from "not looked at" — the whole
         # point of the tier system, lost at the format boundary.
@@ -82,18 +114,27 @@ def _run(scans: list[tuple[str, ScanResult]]) -> dict:
                 },
             }
         },
-        "invocation": {
-            "executionSuccessful": True,
-            "toolExecutionNotifications": notifications,
-            "properties": {
-                "evidence_tiers": tiers,
-                "replayed_from": [scan.replayed_from for _, scan in scans if scan.replayed_from],
-                "evidence_tier_descriptions": [TIER_DESCRIPTIONS[scan.tier] for _, scan in scans][
-                    :1
-                ],
-                "checks_not_run_count": len(notifications),
-            },
-        },
+        # `invocations`, plural and an array. SARIF 2.1.0 has no singular
+        # `invocation` member, so the first version of this put every
+        # checks-not-run notification somewhere no conformant consumer would
+        # ever look — the notifications were written and invisible.
+        "invocations": [
+            {
+                "executionSuccessful": True,
+                "toolExecutionNotifications": notifications,
+                "properties": {
+                    "evidence_tiers": tiers,
+                    "replayed_from": [
+                        scan.replayed_from for _, scan in scans if scan.replayed_from
+                    ],
+                    "evidence_tier_descriptions": [
+                        TIER_DESCRIPTIONS[scan.tier] for _, scan in scans
+                    ][:1],
+                    "checks_not_run_count": len(notifications),
+                },
+            }
+        ],
+        "taxonomies": [_owasp_taxonomy()],
         "results": results,
     }
 
@@ -107,6 +148,16 @@ def _rule(entry) -> dict:
             "text": f"{entry.title}. Capability: {entry.capability.value}. OWASP MCP: {entry.owasp_mcp}."
         },
         "helpUri": entry.reference,
+        "relationships": [
+            {
+                "target": {
+                    "id": entry.owasp_mcp,
+                    "guid": OWASP_TAXONOMY_GUID,
+                    "toolComponent": {"name": "OWASP MCP Top 10", "guid": OWASP_TAXONOMY_GUID},
+                },
+                "kinds": ["superset"],
+            }
+        ],
         "properties": {
             "capability": entry.capability.value,
             "owasp_mcp": entry.owasp_mcp,
@@ -116,7 +167,7 @@ def _rule(entry) -> dict:
     }
 
 
-def _result(finding: Finding, artifact_uri: str) -> dict:
+def _result(finding: Finding, artifact_uri: str, scan: ScanResult) -> dict:
     return {
         "ruleId": finding.id,
         "level": _level(effective_severity(finding)),
@@ -133,9 +184,19 @@ def _result(finding: Finding, artifact_uri: str) -> dict:
                 "logicalLocations": [{"name": finding.target}],
             }
         ],
+        "taxa": [
+            {
+                "id": finding.owasp_mcp,
+                "guid": OWASP_TAXONOMY_GUID,
+                "toolComponent": {"name": "OWASP MCP Top 10", "guid": OWASP_TAXONOMY_GUID},
+            }
+        ],
         "properties": {
             "capability": finding.capability.value,
             "owasp_mcp": finding.owasp_mcp,
+            # Per result, not only per run: scan-config produces one run over
+            # several servers and they need not share a tier.
+            "evidence_tier": scan.tier.value,
             "scope": finding.scope.value,
             "contextual_verdict": finding.contextual_verdict.value,
             "original_severity": (finding.original_severity or finding.severity).value,

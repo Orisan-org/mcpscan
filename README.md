@@ -196,6 +196,23 @@ Confirm an inferred purpose with `--purpose-category` when you want the downgrad
 | MCP-062 | Unpinned server package | medium | MCP04 | active, all tiers |
 | MCP-063 | Broad filesystem path granted in configuration | high | MCP02 | active, all tiers |
 
+### SARIF
+
+`--output sarif` on both `scan` and `scan-config`, SARIF 2.1.0.
+
+- The OWASP MCP Top 10 is declared as a **taxonomy**, with `isComprehensive:
+  false` because three categories have no check. Every result points into it by
+  taxon reference and every rule declares its relationship, so a consumer reads
+  the category from the structure rather than from a string property it has to
+  know about. Each taxon carries its coverage status, derived from the registry.
+- Every result carries its **evidence tier**, not just the run: `scan-config`
+  produces one run over several servers and they need not share one.
+- **Checks that did not run** appear as `toolExecutionNotifications` on the
+  invocation, identically for both commands, so a reader can tell *clean* from
+  *not looked at*.
+- No `region.snippet` is ever populated. SARIF permits server-supplied text
+  there, and every finding says `payload_stored=false`.
+
 ### Signed results
 
     mcpscan keygen
