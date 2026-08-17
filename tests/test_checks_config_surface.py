@@ -323,3 +323,84 @@ def test_config_tier_results_are_deterministic(tmp_path: Path) -> None:
         return out.stdout
 
     assert body() == body()
+
+
+# ------------------------------------------------------------ MCP-062 remediation
+
+
+def _finding(command: list[str]):
+    findings = UnpinnedServerPackageCheck().run(ctx(command))
+    assert findings, f"expected a finding for {command}"
+    return findings[0]
+
+
+def test_remediation_shows_the_pinned_form_of_this_command() -> None:
+    """ "Pin it" without the syntax is a remediation people skip."""
+    finding = _finding(["npx", "-y", "@modelcontextprotocol/server-filesystem", "/tmp/x"])
+    assert finding.metadata["pinned_form"] == (
+        "npx -y @modelcontextprotocol/server-filesystem@<version> /tmp/x"
+    )
+    assert finding.metadata["pinned_form"] in finding.remediation
+
+
+def test_the_pinned_form_uses_each_runners_own_syntax() -> None:
+    assert _finding(["npx", "thing"]).metadata["pinned_form"] == "npx thing@<version>"
+    assert _finding(["uvx", "thing"]).metadata["pinned_form"] == "uvx thing==<version>"
+    assert _finding(["pipx", "run", "thing"]).metadata["pinned_form"] == "pipx run thing==<version>"
+    assert _finding(["bunx", "thing"]).metadata["pinned_form"] == "bunx thing@<version>"
+
+
+def test_multi_word_runners_pin_the_package_not_the_subcommand() -> None:
+    """`uv tool` was listed as the prefix for `uv tool run pkg`, so the check
+    flagged `run` as the unpinned specifier and suggested pinning it."""
+    finding = _finding(["uv", "tool", "run", "other-tool"])
+    assert finding.target == "other-tool"
+    assert finding.metadata["pinned_form"] == "uv tool run other-tool==<version>"
+
+
+def test_an_existing_version_or_range_is_replaced_not_appended() -> None:
+    assert _finding(["uvx", "pkg>=2.0"]).metadata["pinned_form"] == "uvx pkg==<version>"
+    assert _finding(["uvx", "pkg~=1.0"]).metadata["pinned_form"] == "uvx pkg==<version>"
+    assert _finding(["npx", "thing@latest"]).metadata["pinned_form"] == "npx thing@<version>"
+
+
+def test_scoped_npm_names_keep_their_leading_at() -> None:
+    assert _finding(["npx", "@scope/name@latest"]).metadata["pinned_form"] == (
+        "npx @scope/name@<version>"
+    )
+
+
+def test_pip_style_pins_are_recognised_as_pinned() -> None:
+    """uv and pipx take `name==version`; only understanding npm's `@` form
+    made every correctly pinned uv launch a false positive."""
+    check = UnpinnedServerPackageCheck()
+    assert check.run(ctx(["uvx", "pkg==2.3.4"])) == []
+    assert check.run(ctx(["uv", "tool", "run", "pkg==1.0"])) == []
+    # A range still floats, so it is still reported.
+    assert check.run(ctx(["uvx", "pkg>=2.0"]))
+
+
+def test_a_vcs_specifier_is_pinned_to_a_commit() -> None:
+    finding = _finding(["uvx", "git+https://x.invalid/r.git"])
+    assert "<commit-sha>" in finding.metadata["pinned_form"]
+
+
+def test_the_finding_explains_why_unpinned_enables_a_rug_pull() -> None:
+    finding = _finding(["npx", "thing"])
+    assert "rug pull" in finding.evidence
+    assert "fetched fresh at every launch" in finding.evidence
+    assert "audited" in finding.evidence and "run are not necessarily the same" in finding.evidence
+
+
+def test_the_remediation_points_at_snapshot_and_drift() -> None:
+    finding = _finding(["npx", "thing"])
+    assert "mcpscan snapshot" in finding.remediation
+    assert "mcpscan drift" in finding.remediation
+
+
+def test_the_remediation_does_not_oversell_pinning() -> None:
+    """Pinning narrows the window; it does not close it. Saying otherwise
+    would be the overstatement this project exists not to make."""
+    finding = _finding(["npx", "thing"])
+    assert "does not close it" in finding.remediation
+    assert "republished" in finding.remediation

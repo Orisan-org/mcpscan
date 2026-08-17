@@ -183,12 +183,83 @@ class DangerousLaunchCommandCheck(Check):
 # ---------------------------------------------------------------- MCP-062
 
 _RUNNERS = {"npx", "bunx", "uvx", "pnpx", "dlx"}
-#: `pipx run pkg`, `uv tool run pkg` — runner is the second token.
-_TWO_WORD_RUNNERS = {("pipx", "run"), ("uv", "tool"), ("bun", "x")}
+#: Runners spelled as several tokens. Listed in full, longest first, because
+#: `uv tool` was listed as the prefix for `uv tool run pkg` and left `run`
+#: sitting in front of the package — so the check flagged "run" as the
+#: unpinned specifier and suggested pinning it. Matching the whole prefix is
+#: the fix; the list being explicit is what makes the mistake visible.
+_MULTI_WORD_RUNNERS: tuple[tuple[str, ...], ...] = (
+    ("uv", "tool", "run"),
+    ("pipx", "run"),
+    ("bun", "x"),
+)
 _RUNNER_FLAGS = {"-y", "--yes", "-q", "--quiet", "--silent", "-p", "--package", "--from"}
 _VCS_SPEC = re.compile(r"^(?:git\+|github:|gitlab:|https?://)", re.I)
-#: npm-style pin: name@1.2.3, @scope/name@1.2.3. Also accepts a sha or tag.
-_PINNED = re.compile(r"^(@[^/@\s]+/)?[^@\s]+@(?!latest\b|next\b|beta\b|\*)[^@\s]+$")
+#: An exact pin, in either ecosystem's spelling.
+#:   npm  — name@1.2.3, @scope/name@1.2.3
+#:   pip  — name==1.2.3, which uv and pipx take
+#: `>=` and `~=` are deliberately NOT pins: they still float.
+_PINNED_NPM = re.compile(r"^(@[^/@\s]+/)?[^@\s]+@(?!latest\b|next\b|beta\b|\*)[^@\s]+$")
+_PINNED_PEP = re.compile(r"^[A-Za-z0-9._-]+==[^\s=]+$")
+
+
+def _is_pinned(spec: str) -> bool:
+    return bool(_PINNED_NPM.match(spec) or _PINNED_PEP.match(spec))
+
+
+#: How each runner spells "this exact version". `npx pkg@1.2.3` is the npm
+#: form; uv and pipx take the same `name==version` shape as pip.
+_PIN_STYLE: dict[str, str] = {
+    "npx": "{name}@{version}",
+    "bunx": "{name}@{version}",
+    "pnpx": "{name}@{version}",
+    "dlx": "{name}@{version}",
+    "uvx": "{name}=={version}",
+    "pipx": "{name}=={version}",
+    "uv": "{name}=={version}",
+    "bun": "{name}@{version}",
+}
+
+
+def _runner_name(command: list[str]) -> str:
+    if not command:
+        return ""
+    head = command[0].rsplit("/", 1)[-1].rsplit("\\", 1)[-1].lower()
+    return head[:-4] if head.endswith(".exe") else head
+
+
+#: Anything that introduces a version constraint. Ordered longest-first so
+#: `>=` is not split as `>`.
+_VERSION_OPERATOR = re.compile(r"(===|==|>=|<=|~=|!=|@|>|<)")
+
+
+def _base_package_name(spec: str) -> str:
+    """The package name with any existing version, range or tag stripped.
+
+    A range like `pkg>=2.0` is not a pin, and the suggested fix must be
+    `pkg==<version>` rather than `pkg>=2.0==<version>`.
+    """
+    if _VCS_SPEC.match(spec):
+        return spec
+    if spec.startswith("@"):
+        # npm scoped name: the leading @ is part of the name, not an operator.
+        scope, _, rest = spec.partition("/")
+        return f"{scope}/{_VERSION_OPERATOR.split(rest, maxsplit=1)[0]}" if rest else spec
+    return _VERSION_OPERATOR.split(spec, maxsplit=1)[0]
+
+
+def pinned_form(command: list[str], spec: str) -> str:
+    """The same command with the specifier pinned, ready to paste.
+
+    A remediation that says "pin it" and leaves the operator to work out the
+    syntax for their runner is a remediation people skip. This shows the line.
+    """
+    style = _PIN_STYLE.get(_runner_name(command), "{name}@{version}")
+    if _VCS_SPEC.match(spec):
+        pinned = f"{spec}@<commit-sha>"
+    else:
+        pinned = style.format(name=_base_package_name(spec), version="<version>")
+    return " ".join(pinned if arg == spec else arg for arg in command)
 
 
 class UnpinnedServerPackageCheck(Check):
@@ -210,23 +281,34 @@ class UnpinnedServerPackageCheck(Check):
             reason = "a version-control or URL specifier, whose contents can change at any time"
         elif re.search(r"@(latest|next|beta|\*)$", spec, re.I):
             reason = "an explicitly floating tag"
-        elif _PINNED.match(spec):
+        elif _is_pinned(spec):
             return []
         else:
             reason = "no version, so the runner resolves the newest release at every launch"
 
+        suggestion = pinned_form(command, spec)
         return [
             self.finding(
                 target=spec,
                 evidence=(
                     f"The server is launched via a package runner with {reason}. "
-                    "A rug pull needs no access to your machine: publishing a new version is enough."
+                    "This is what makes a rug pull possible: the tool descriptions your agent "
+                    "trusts are fetched fresh at every launch, so whoever controls the package "
+                    "can change what the agent is told to do without touching your machine, your "
+                    "config, or anything you would think to re-review. An unpinned launch means "
+                    "the server you audited and the server you run are not necessarily the same "
+                    "software."
                 ),
                 remediation=(
-                    "Pin an exact version, and re-pin deliberately. `mcpscan snapshot` plus "
-                    "`mcpscan drift` will show when a pinned surface changes anyway."
+                    f"Pin the exact version:\n    {suggestion}\n"
+                    "Then re-pin deliberately rather than automatically. Pinning narrows the "
+                    "window but does not close it — a pinned package can still be republished, "
+                    "and the surface can change for other reasons. Record what you approved with "
+                    "`mcpscan snapshot --out <file>` and check it on every run with "
+                    "`mcpscan drift --baseline <file>`, which reports a changed description or a "
+                    "changed launch command even when the version string did not move."
                 ),
-                metadata={"specifier": spec},
+                metadata={"specifier": spec, "pinned_form": suggestion},
             )
         ]
 
@@ -239,8 +321,11 @@ def _package_spec(command: list[str]) -> str | None:
     rest = command[1:]
 
     if head not in _RUNNERS:
-        if len(command) >= 2 and (head, command[1].lower()) in _TWO_WORD_RUNNERS:
-            rest = command[2:]
+        lowered = [head, *(arg.lower() for arg in command[1:])]
+        for prefix in _MULTI_WORD_RUNNERS:
+            if tuple(lowered[: len(prefix)]) == prefix:
+                rest = command[len(prefix) :]
+                break
         else:
             return None
 
