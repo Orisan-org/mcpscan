@@ -220,7 +220,8 @@ def drift_command(
                 else asyncio.run(enumerate_target(scan_target_model, timeout_seconds=timeout))
             )
             current = build_snapshot(ctx, label=snapshot_body(base).get("label"))
-        findings = compare_snapshots(base, current)
+        report = compare_snapshots(base, current)
+        findings = report.findings
 
         if output == "json":
             typer.echo(
@@ -230,13 +231,15 @@ def drift_command(
                         "baseline_captured_at": base["envelope"]["captured_at"],
                         "baseline_surface_version": snapshot_body(base).get("surface_version"),
                         "drift_detected": bool(findings),
+                        "surface_compared": report.surface_compared,
+                        "surface_not_compared_reason": report.surface_reason,
                         "changes": [f.model_dump(mode="json") for f in findings],
                     },
                     indent=2,
                     sort_keys=True,
                 )
             )
-        elif not findings:
+        elif not findings and report.surface_compared:
             typer.echo(
                 f"No drift against {baseline} "
                 f"(label {snapshot_body(base).get('label')!r}, captured {base['envelope']['captured_at']})."
@@ -253,7 +256,17 @@ def drift_command(
             )
             for finding in findings:
                 typer.echo(f"  {finding.severity.value:<8} {finding.target:<12} {finding.evidence}")
-        raise typer.Exit(EXIT_FINDINGS if findings else EXIT_OK)
+
+        if not report.surface_compared and output != "json":
+            typer.echo(f"\nCANNOT FULLY COMPARE: {report.surface_reason}", err=True)
+
+        # Real drift outranks a partial comparison, the same way tampered
+        # outranks cannot-verify: if the launch changed, that is drift and
+        # saying so is the priority. Otherwise an uncompared surface cannot be
+        # reported as "no drift", so it is exit 2.
+        if findings:
+            raise typer.Exit(EXIT_FINDINGS)
+        raise typer.Exit(EXIT_OK if report.surface_compared else EXIT_USAGE)
     except DriftMismatch as exc:
         typer.echo(f"Cannot compare: {exc}", err=True)
         raise typer.Exit(EXIT_USAGE) from exc

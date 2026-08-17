@@ -16,6 +16,7 @@ import json
 import os
 import tempfile
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -35,7 +36,12 @@ from mcpscan.models import (
     Transport,
 )
 from mcpscan.ruleset import RULESET_VERSION, ruleset_digest
-from mcpscan.surface import SURFACE_VERSION, build_surface, compare_tool_surface
+from mcpscan.surface import (
+    SURFACE_VERSION,
+    build_surface,
+    compare_launch_surface,
+    compare_tool_surface,
+)
 from mcpscan.tiers import EvidenceTier
 
 #: 2 split the document into an unsigned envelope and a byte-stable body, and
@@ -191,12 +197,47 @@ class DriftMismatch(TargetError):
     """The two snapshots do not describe the same server."""
 
 
-def compare_snapshots(baseline: dict, current: dict) -> list[Finding]:
+@dataclass(frozen=True)
+class DriftReport:
+    """What moved, and what could not be looked at.
+
+    `surface_compared` is separate from `findings` because "no tool changes"
+    and "tool changes were not compared" are different answers and must not
+    render as the same silence.
+    """
+
+    findings: list[Finding]
+    surface_compared: bool
+    surface_reason: str | None = None
+
+    @property
+    def drift(self) -> bool:
+        return bool(self.findings)
+
+
+def _has_tool_surface(document: dict) -> bool:
+    """A config-tier snapshot records the launch and nothing else.
+
+    Tool descriptions do not exist in a config file, so a config-tier snapshot
+    has no tool surface — not an empty one.
+    """
+    return snapshot_body(document).get("tier") != "config"
+
+
+def compare_snapshots(baseline: dict, current: dict) -> DriftReport:
     """Drift between two snapshot documents.
 
     Refuses when the labels differ: comparing two different servers would
     report every tool as added and every other as removed, which looks like a
     catastrophic finding and is actually operator error.
+
+    Refuses the TOOL SURFACE comparison, separately, when either side has no
+    surface to compare. A live baseline against a config-tier snapshot used to
+    report all nine tools as "removed since baseline" — nine false findings,
+    because the second snapshot never captured a tool surface at all. The
+    launch is still compared: a command, its arguments and its environment
+    variable names are recorded at every tier, so a genuinely changed launch is
+    real drift and gets reported.
     """
     base_label = snapshot_body(baseline).get("label")
     current_label = snapshot_body(current).get("label")
@@ -205,7 +246,38 @@ def compare_snapshots(baseline: dict, current: dict) -> list[Finding]:
             f"Snapshots describe different targets ({base_label!r} vs "
             f"{current_label!r}); refusing to report that as drift."
         )
-    return compare_tool_surface(snapshot_surface(current), snapshot_surface(baseline))
+
+    base_tier = snapshot_body(baseline).get("tier")
+    current_tier = snapshot_body(current).get("tier")
+    if _has_tool_surface(baseline) and _has_tool_surface(current):
+        return DriftReport(
+            findings=compare_tool_surface(snapshot_surface(current), snapshot_surface(baseline)),
+            surface_compared=True,
+        )
+
+    missing = [
+        name
+        for name, document in (("baseline", baseline), ("current", current))
+        if not _has_tool_surface(document)
+    ]
+    which = "both snapshots were" if len(missing) == 2 else f"the {missing[0]} snapshot was"
+    # Only say "tiers differ" when they actually do. Two config-tier snapshots
+    # match each other and still have no tool surface between them, and
+    # claiming a difference that is not there is its own small untruth.
+    lead = (
+        f"tiers differ (baseline {base_tier}, current {current_tier})"
+        if base_tier != current_tier
+        else f"both snapshots are {base_tier} tier"
+    )
+    reason = (
+        f"{lead}: the tool surface was NOT compared because {which} captured at config tier, "
+        "which records the launch and no tool surface. Re-capture at live tier to compare tools."
+    )
+    return DriftReport(
+        findings=compare_launch_surface(snapshot_surface(current), snapshot_surface(baseline)),
+        surface_compared=False,
+        surface_reason=reason,
+    )
 
 
 class SnapshotProfileError(TargetError):

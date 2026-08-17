@@ -53,7 +53,7 @@ def snap(command: list[str], env: dict[str, str] | None = None, label: str = "t"
 
 
 def test_launch_argument_change_is_drift_with_identical_descriptions() -> None:
-    changes = compare_snapshots(snap(["uvx", "thing"]), snap(["uvx", "thing", "--exfil"]))
+    changes = compare_snapshots(snap(["uvx", "thing"]), snap(["uvx", "thing", "--exfil"])).findings
     assert len(changes) == 1
     assert changes[0].target == "launch"
     assert "--exfil" in changes[0].evidence
@@ -61,14 +61,14 @@ def test_launch_argument_change_is_drift_with_identical_descriptions() -> None:
 
 
 def test_launch_executable_change_is_drift() -> None:
-    changes = compare_snapshots(snap(["uvx", "thing"]), snap(["node", "thing"]))
+    changes = compare_snapshots(snap(["uvx", "thing"]), snap(["node", "thing"])).findings
     assert any("executable changed" in c.evidence for c in changes)
 
 
 def test_env_name_change_is_drift_and_values_are_never_compared() -> None:
     changes = compare_snapshots(
         snap(["node", "s.js"], {"A": "one"}), snap(["node", "s.js"], {"A": "two", "B": "x"})
-    )
+    ).findings
     assert len(changes) == 1
     assert "added B" in changes[0].evidence
     # A's value changed from "one" to "two" and that is deliberately invisible:
@@ -77,7 +77,7 @@ def test_env_name_change_is_drift_and_values_are_never_compared() -> None:
 
 
 def test_no_change_is_no_drift() -> None:
-    assert compare_snapshots(snap(["uvx", "thing"]), snap(["uvx", "thing"])) == []
+    assert compare_snapshots(snap(["uvx", "thing"]), snap(["uvx", "thing"])).findings == []
 
 
 # ------------------------------------------------------- the pre-existing dimensions
@@ -128,7 +128,7 @@ def test_a_pre_launch_baseline_says_the_launch_was_not_compared() -> None:
     old = snap(["uvx", "thing"])
     old["body"]["surface"]["surface_version"] = 1
     old["body"]["surface"].pop("launch", None)
-    changes = compare_snapshots(old, snap(["uvx", "COMPLETELY-DIFFERENT"]))
+    changes = compare_snapshots(old, snap(["uvx", "COMPLETELY-DIFFERENT"])).findings
     assert any("was NOT compared" in c.evidence for c in changes)
     assert all(c.severity.value == "info" for c in changes if "NOT compared" in c.evidence)
 
