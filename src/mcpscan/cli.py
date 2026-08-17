@@ -20,6 +20,7 @@ from mcpscan.coverage import coverage_summary, render_coverage
 from mcpscan.enumerator import enumerate_target
 from mcpscan.errors import EnumerationError, McpScanError, TargetError
 from mcpscan.models import ConfiguredServer, PurposeCategory, Severity, Transport
+from mcpscan.orisan_format import render_document as render_orisan_document
 from mcpscan.reporters.envelope import render_config_envelope, render_envelope
 from mcpscan.reporters.json_reporter import render_config_json, render_json
 from mcpscan.reporters.markdown import render_config_markdown, render_markdown
@@ -398,7 +399,8 @@ def scan(
         list[str] | None, typer.Option("--header", help="Remote header 'Name: Value'.")
     ] = None,
     output: Annotated[
-        str, typer.Option("--output", help="Report output: table, json, md, sarif.")
+        str,
+        typer.Option("--output", help="Report output: table, json, md, sarif, orisan."),
     ] = "table",
     out: Annotated[Path | None, typer.Option("--out", help="Write report to path.")] = None,
     envelope_out: Annotated[
@@ -759,7 +761,9 @@ def _render(result, *, output: str, no_color: bool) -> str:
         return render_markdown(result)
     if output == "sarif":
         return render_sarif(result)
-    raise TargetError("--output must be one of: table, json, md, sarif.")
+    if output == "orisan":
+        return render_orisan_document(result)
+    raise TargetError("--output must be one of: table, json, md, sarif, orisan.")
 
 
 def _render_config(result, *, output: str, no_color: bool) -> str:

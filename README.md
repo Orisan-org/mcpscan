@@ -196,6 +196,32 @@ Confirm an inferred purpose with `--purpose-category` when you want the downgrad
 | MCP-062 | Unpinned server package | medium | MCP04 | active, all tiers |
 | MCP-063 | Broad filesystem path granted in configuration | high | MCP02 | active, all tiers |
 
+### Feeding findings to orisan-recorder
+
+    mcpscan scan --command "uvx thing@1.2.3" --output orisan
+
+Emits findings in recorder vocabulary as a **detached document**: same field
+names, same canonical JSON, and no chain fields at all. `"chained": false` is a
+top-level key, and the note beside it says the entries are not a verified chain
+and must not be presented as one.
+
+A recorder event means something only inside a hash chain — it carries a `seq`,
+a `prev_hash` and a `hash` continuous with its neighbours. mcpscan cannot
+produce those: it does not know the log it will be appended to, what preceded
+it, or what will follow. Inventing them would manufacture evidence that looks
+verified and is not, so `seq`, `prev_hash`, `hash`, `v`, `event_id` and
+`session_id` are **absent rather than guessed**. The recorder assigns them at
+append time, which is the only place they can be assigned correctly.
+
+Appending straight into a live log directory was considered and rejected. It
+sounds tighter and is worse: it puts a scanner inside the trust boundary of the
+evidence log.
+
+Findings map to the recorder's existing `flag` kind, so no change to that repo
+is needed and no document can arrive before the recorder can read it. Evidence
+text never crosses the boundary — it is carried as `args_digest`, keeping
+`payload_stored=false` true in this format too.
+
 ### SARIF
 
 `--output sarif` on both `scan` and `scan-config`, SARIF 2.1.0.
