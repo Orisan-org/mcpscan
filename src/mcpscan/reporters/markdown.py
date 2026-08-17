@@ -4,6 +4,7 @@ from mcpscan import __version__
 from mcpscan.constants import CHECKS_VERSION, NOT_CHECKED, SCANNER_NAME
 from mcpscan.models import ConfigScanResult, ScanResult
 from mcpscan.reporters.json_reporter import recommendation_for
+from mcpscan.ruleset import RULESET_VERSION, ruleset_digest
 from mcpscan.scoring import effective_severity
 from mcpscan.tiers import TIER_DESCRIPTIONS, grade_label
 
@@ -21,6 +22,7 @@ def render_markdown(result: ScanResult) -> str:
         f"- Transport: {result.target.transport.value}",
         f"- Scanner: {SCANNER_NAME} {__version__}",
         f"- Checks version: {CHECKS_VERSION}",
+        f"- Ruleset: v{RULESET_VERSION} digest {ruleset_digest()[:16]}",
         f"- Timestamp UTC: {result.scan.timestamp_utc}",
         f"- Reproduce command: `{result.scan.reproduce_command or 'unavailable'}`",
         "- Payload stored: false for all findings",

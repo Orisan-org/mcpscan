@@ -6,6 +6,7 @@ from mcpscan import __version__
 from mcpscan.capabilities import owasp_coverage
 from mcpscan.constants import CHECKS_VERSION, NOT_CHECKED, REPORT_VERSION, SCANNER_NAME
 from mcpscan.models import ConfigScanResult, ScanResult
+from mcpscan.ruleset import RULESET_VERSION, ruleset_digest
 from mcpscan.scoring import effective_severity
 from mcpscan.tiers import TIER_DESCRIPTIONS, grade_is_assessable
 
@@ -29,6 +30,10 @@ def render_json(result: ScanResult) -> str:
         "scan": {
             "mcpscan_version": __version__,
             "checks_version": CHECKS_VERSION,
+            # The version pins the code; the digest pins the rules. A verdict
+            # is only reproducible if you know which rules produced it.
+            "ruleset_version": RULESET_VERSION,
+            "ruleset_digest": ruleset_digest(),
             "timestamp_utc": result.scan.timestamp_utc,
             "target": _target_label(result),
             "transport": result.target.transport.value,
@@ -71,6 +76,8 @@ def render_config_json(result: ConfigScanResult) -> str:
     payload = {
         "scanner": {"name": SCANNER_NAME, "version": __version__},
         "report_version": REPORT_VERSION,
+        "ruleset_version": RULESET_VERSION,
+        "ruleset_digest": ruleset_digest(),
         "config": {
             "paths": result.config_paths,
             "configs_found": result.summary.configs_found,

@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.table import Table
 
 from mcpscan.models import ConfigScanResult, ScanResult
+from mcpscan.ruleset import RULESET_VERSION, ruleset_digest
 from mcpscan.scoring import effective_severity
 from mcpscan.tiers import TIER_DESCRIPTIONS, grade_label
 
@@ -25,6 +26,7 @@ def render_terminal(result: ScanResult, *, no_color: bool = False) -> str:
     # swallowed the whole annotation, leaving a bare "Grade: A" behind.
     console.print(f"Grade: {grade_label(result.grade, result.tier, result.checks_not_run)}")
     console.print(f"Evidence: {TIER_DESCRIPTIONS[result.tier]}")
+    console.print(f"Ruleset: v{RULESET_VERSION} digest {ruleset_digest()[:16]}")
     table = Table("SEVERITY", "VERDICT", "ID", "TARGET", "FINDING")
     for finding in result.findings:
         table.add_row(

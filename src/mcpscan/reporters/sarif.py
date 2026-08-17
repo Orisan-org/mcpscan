@@ -6,6 +6,7 @@ from mcpscan import __version__
 from mcpscan.checks.registry import check_catalogue
 from mcpscan.constants import SCANNER_NAME
 from mcpscan.models import ConfigScanResult, Finding, ScanResult, Severity
+from mcpscan.ruleset import RULESET_VERSION, ruleset_digest
 from mcpscan.scoring import effective_severity
 from mcpscan.tiers import TIER_DESCRIPTIONS
 
@@ -75,6 +76,10 @@ def _run(scans: list[tuple[str, ScanResult]]) -> dict:
                 "version": __version__,
                 "informationUri": "https://github.com/Orisan-org/mcpscan",
                 "rules": [_rule(entry) for entry in check_catalogue()],
+                "properties": {
+                    "ruleset_version": RULESET_VERSION,
+                    "ruleset_digest": ruleset_digest(),
+                },
             }
         },
         "invocation": {

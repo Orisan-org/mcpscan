@@ -22,6 +22,7 @@ from mcpscan.reporters.json_reporter import render_config_json, render_json
 from mcpscan.reporters.markdown import render_config_markdown, render_markdown
 from mcpscan.reporters.sarif import render_config_sarif, render_sarif
 from mcpscan.reporters.terminal import render_config_terminal, render_terminal
+from mcpscan.ruleset import RULESET_VERSION, canonical_manifest_json, ruleset_digest
 from mcpscan.scanner import scan_target
 from mcpscan.scoring import effective_severity
 from mcpscan.sdk_compat import mcp_sdk_problem
@@ -61,6 +62,23 @@ def main(
 @app.command()
 def version() -> None:
     console.print(__version__)
+
+
+@app.command("ruleset")
+def ruleset_command(
+    manifest: Annotated[
+        bool,
+        typer.Option(
+            "--manifest", help="Print the full canonical manifest the digest is taken over."
+        ),
+    ] = False,
+) -> None:
+    """Show the ruleset version and digest, or the manifest behind it."""
+    if manifest:
+        typer.echo(canonical_manifest_json())
+        return
+    typer.echo(f"ruleset_version {RULESET_VERSION}")
+    typer.echo(f"ruleset_digest  {ruleset_digest()}")
 
 
 @app.command("list-checks")

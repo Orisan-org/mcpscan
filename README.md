@@ -196,6 +196,26 @@ Confirm an inferred purpose with `--purpose-category` when you want the downgrad
 | MCP-062 | Unpinned server package | medium | MCP04 | active, all tiers |
 | MCP-063 | Broad filesystem path granted in configuration | high | MCP02 | active, all tiers |
 
+### Ruleset version and digest
+
+Every report carries `ruleset_version` and `ruleset_digest`, and `mcpscan
+ruleset` prints them without running a scan. The scanner version pins the code;
+the digest pins the **rules**, and a pattern change is what moves a verdict.
+"mcpscan 0.1.1 said B" is not a reproducible claim on its own.
+
+The digest is taken over a canonical manifest of every check's metadata and
+every module-level constant in its defining module — patterns, keyword lists,
+thresholds — sorted by check id, so reordering the registry does not change it
+but changing any rule does. `mcpscan ruleset --manifest` prints exactly what is
+hashed.
+
+**What it does not cover:** logic written inline rather than as data. Changing
+`if len(x) > 3` to `> 5` inside a check moves verdicts without moving the
+digest. The mitigation is a convention — thresholds live in module constants,
+where the manifest can see them — not a guarantee. Hashing bytecode would close
+the gap and would also change with every Python release, which would make the
+digest useless for the thing it exists for.
+
 ### Evidence tiers
 
 Every report states which tier produced it, and lists the checks that tier could
