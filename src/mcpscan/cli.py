@@ -242,8 +242,14 @@ def drift_command(
                 f"(label {snapshot_body(base).get('label')!r}, captured {base['envelope']['captured_at']})."
             )
         else:
+            # Read the label from the BODY, as the no-drift path does. The
+            # format-2 split moved it there and only that branch was updated,
+            # so a drift report printed "label None" for a labelled snapshot
+            # and omitted the capture time the other branch shows.
             typer.echo(
-                f"{len(findings)} change(s) against {baseline} (label {base.get('label')!r}):"
+                f"{len(findings)} change(s) against {baseline} "
+                f"(label {snapshot_body(base).get('label')!r}, "
+                f"captured {base['envelope']['captured_at']}):"
             )
             for finding in findings:
                 typer.echo(f"  {finding.severity.value:<8} {finding.target:<12} {finding.evidence}")
