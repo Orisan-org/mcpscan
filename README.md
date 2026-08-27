@@ -4,7 +4,7 @@
 
 > Installs from PyPI as **`orisan-mcpscan`**; the command it gives you is `mcpscan` (an `orisan-mcpscan` alias also works). It is an alpha.
 
-## Try it in ten seconds
+## Try it, without installing anything
 
 No repo of your own, no MCP servers to configure. [uvx](https://docs.astral.sh/uv/) fetches mcpscan and runs it in one step, against a bundled sample config that includes one benign server and one deliberately risky one:
 
@@ -21,7 +21,11 @@ uvx orisan-mcpscan scan-config sample-mcp.json --yes
 
 The first run downloads the two sample servers via `npx` (~30s cold); after that it is seconds.
 
-Real output, from **0.2.0**. `uvx` fetches the newest published release, so if
+**Abridged from a real 0.2.1 run — not a transcript.** Every grade, verdict, check ID
+and tool name below is what 0.2.1 actually printed on 2026-08-27, but the layout is
+condensed: the real output renders findings as tables and carries `Source:` and
+`Transport:` lines per server. Nothing here is invented; it is shortened. Run the
+command yourself for the real shape. `uvx` fetches the newest published release, so if
 yours is older the findings below that come from config-tier checks (MCP-060 to
 MCP-063) will be absent. Both servers here are launched with an unpinned
 `npx -y`, and the risky one is handed the whole filesystem:
