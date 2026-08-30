@@ -19,9 +19,8 @@ notes will call it out.
 Please report security issues privately to the project owner before public
 disclosure. **Do not open a public GitHub issue for a vulnerability.**
 
-- **Contact:** TODO — no security contact has been published for this repo
-  yet. Founder to confirm an address (or a private reporting channel) before
-  this file ships.
+- **Contact:** team@orisan.org — published on orisan.org's contact page and
+  site footer.
 - **Please include:**
   - affected version or commit
   - target transport (`stdio`, Streamable HTTP, or SSE)
