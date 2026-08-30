@@ -1,0 +1,19 @@
+title = "mcpscan gitleaks config"
+
+[extend]
+useDefault = true
+
+# Known false positive: src/mcpscan/signing.py:101 and :187 trip
+# generic-api-key because the type annotation `Ed25519PrivateKey` contains
+# the keyword "key" and the type name itself is what the rule extracts as
+# the "secret". There is no credential here, just a type name in a
+# signature. Allowlisted by the exact file path AND the exact matched
+# string only -- not the whole src/mcpscan directory, and not by
+# fingerprint alone.
+[[allowlists]]
+description = "src/mcpscan/signing.py:101,187: generic-api-key matching the type name Ed25519PrivateKey in a type annotation, not a credential"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^src/mcpscan/signing\.py$''']
+regexTarget = "match"
+regexes = ['''Ed25519PrivateKey''']
