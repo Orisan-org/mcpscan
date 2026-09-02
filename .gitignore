@@ -11,3 +11,9 @@ build/
 htmlcov/
 .coverage
 *.pyc
+
+# Secrets.
+.env
+.env.*
+*.pem
+*.key
